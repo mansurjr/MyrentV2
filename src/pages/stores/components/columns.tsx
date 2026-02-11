@@ -30,7 +30,7 @@ interface ActionCellProps {
   onEdit: (store: Store) => void;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
+
 const ActionCell = ({ store, onEdit }: ActionCellProps) => {
   const { deleteStore, terminateContract } = useStores();
   const [isOpen, setIsOpen] = useState(false);

@@ -3,14 +3,18 @@ import { DataTable } from "@/components/DataTable";
 import { useStores } from "../hooks/useStores";
 import { columns } from "./columns";
 import { StoreForm } from "./StoreForm";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, FileSpreadsheet } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useSidebarStore } from "@/store/useSidebarStore";
 import { Button } from "@/components/ui/button";
 import type { Store } from "../../../types/api-responses";
+import { useTranslation } from "react-i18next";
+import { downloadExcelWithAuth } from "@/lib/excel-export";
+import { format } from "date-fns";
 
 export function StoresList() {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -24,6 +28,28 @@ export function StoresList() {
     withContracts: true,
   });
 
+  const handleExport = async () => {
+    const filters = {
+      search: debouncedSearch,
+    };
+    
+    const queryParams = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== "") {
+        queryParams.append(key, value.toString());
+      }
+    });
+
+    const baseURL = import.meta.env.VITE_API_URL || "http://localhost:3020/api";
+    const url = `${baseURL}/stores/export/excel?${queryParams.toString()}`;
+    
+    try {
+      await downloadExcelWithAuth(url, `stores_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   const { openSidebar, closeSidebar } = useSidebarStore();
 
   const storesData = useMemo(() => {
@@ -35,7 +61,7 @@ export function StoresList() {
 
   const handleEdit = (store: Store) => {
     openSidebar({
-      title: "Do'konni tahrirlash",
+      title: t("stores.edit"),
       content: (
         <StoreForm
           editData={store}
@@ -48,7 +74,7 @@ export function StoresList() {
 
   const handleAdd = () => {
     openSidebar({
-      title: "Yangi do'kon qo'shish",
+      title: t("stores.add_new"),
       content: (
         <StoreForm
           onSuccess={closeSidebar}
@@ -62,9 +88,9 @@ export function StoresList() {
     <div className="space-y-6 p-6 h-full flex flex-col min-h-0">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between shrink-0">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Do'konlar</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t("nav.stores")}</h1>
           <p className="text-muted-foreground">
-            Bozor do'konlari va ularning maydonlarini boshqarish.
+            {t("stores.description")}
           </p>
         </div>
       </div>
@@ -73,7 +99,7 @@ export function StoresList() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Qidirish (raqam, bo'lim)..."
+            placeholder={t("stores.search_placeholder")}
             className="h-10 pl-8 bg-background border-border/50 focus-visible:ring-primary/20 transition-all"
             value={search}
             onChange={(e) => {
@@ -85,7 +111,16 @@ export function StoresList() {
         <div className="flex-1" />
         <Button onClick={handleAdd} className="w-full sm:w-auto shadow-md">
           <Plus className="mr-2 h-4 w-4" />
-          Yangi qo'shish
+          {t("common.add_new")}
+        </Button>
+        <Button 
+          variant="outline" 
+          size="icon"
+          onClick={handleExport}
+          className="bg-background border-border/50 hover:bg-muted/50 shadow-sm"
+          title={t("common.export_excel")}
+        >
+          <FileSpreadsheet className="h-4 w-4 text-green-600" />
         </Button>
       </div>
 
@@ -93,7 +128,7 @@ export function StoresList() {
         {isLoading ? (
           <div className="grid gap-4 py-10 place-items-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            <p className="text-muted-foreground">Yuklanmoqda...</p>
+            <p className="text-muted-foreground">{t("common.loading")}</p>
           </div>
         ) : (
           <DataTable

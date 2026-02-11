@@ -53,6 +53,8 @@ export const useAuth = () => {
     isUserLoading,
     userError,
     login: loginMutation.mutate,
+    loginError: loginMutation.error,
+    isLoginError: loginMutation.isError,
     logout,
   };
 };

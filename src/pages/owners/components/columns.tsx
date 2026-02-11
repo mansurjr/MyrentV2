@@ -1,74 +1,37 @@
-import type { ColumnDef } from "@tanstack/react-table"
-import type { Owner } from "../../../types/api-responses"
-import { MoreHorizontal, Edit, Trash, Loader2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import type { ColumnDef } from "@tanstack/react-table";
+import type { Owner } from "../../../types/api-responses";
+import { MoreHorizontal, Edit, RefreshCw, Archive as ArchiveIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
-import { useOwners } from "../hooks/useOwners"
-import { useState } from "react"
-import { useSidebarStore } from "@/store/useSidebarStore"
-import { OwnerForm } from "./OwnerForm"
+} from "@/components/ui/dropdown-menu";
+import { useOwners } from "../hooks/useOwners";
+import { useState } from "react";
+import { useSidebarStore } from "@/store/useSidebarStore";
+import { OwnerForm } from "./OwnerForm";
+import { format } from "date-fns";
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-
-export const columns: ColumnDef<Owner>[] = [
+export const getColumns = (isArchived: boolean = false): ColumnDef<Owner>[] => [
   {
     accessorKey: "id",
     header: "ID",
-    cell: ({ row }) => <span className="font-mono text-muted-foreground">{row.getValue("id")}</span>,
+    cell: ({ row }) => (
+      <span className="font-mono text-muted-foreground">
+        {row.getValue("id")}
+      </span>
+    ),
   },
   {
     accessorKey: "fullName",
     header: "F.I.O",
     minSize: 400,
     cell: ({ row }) => (
-      <div className="font-medium">
-        {row.getValue("fullName")}
-      </div>
+      <div className="font-medium">{row.getValue("fullName")}</div>
     ),
-  },
-  {
-    id: "storeNumbers",
-    header: "Do'kon raqami",
-    cell: ({ row }) => {
-      const contracts = row.original.contracts || [];
-      const activeStoreNumbers = contracts
-        .filter(c => c.isActive && c.store)
-        .map(c => c.store?.storeNumber)
-        .filter(Boolean);
-      
-      if (activeStoreNumbers.length === 0) return "—";
-      return (
-        <div className="flex flex-wrap gap-2">
-          {activeStoreNumbers.map((num, i) => (
-            <Badge 
-              key={i} 
-              variant="outline" 
-              className="bg-primary/10 text-primary border-primary/20 text-sm font-bold py-1 px-3 shadow-sm"
-            >
-              {num}
-            </Badge>
-          ))}
-        </div>
-      );
-    },
   },
   {
     accessorKey: "phoneNumber",
@@ -84,22 +47,40 @@ export const columns: ColumnDef<Owner>[] = [
     header: "Manzil",
     cell: ({ row }) => {
       const address = row.getValue("address") as string;
-      return (
-        <div className="text-muted-foreground">
-          {address || "—"}
-        </div>
-      );
+      return <div className="text-muted-foreground">{address || "—"}</div>;
     },
   },
+  ...(isArchived ? [
+    {
+      id: "archivedInfo",
+      header: "Arxiv ma'lumotlari",
+      cell: ({ row }: { row: any }) => {
+        const owner = row.original;
+        return (
+          <div className="text-xs space-y-1">
+            {owner.archivedBy && (
+              <p className="text-muted-foreground">
+                <span className="font-semibold text-foreground">Kim:</span> {owner.archivedBy.firstName} {owner.archivedBy.lastName}
+              </p>
+            )}
+            {owner.archivedAt && (
+              <p className="text-muted-foreground">
+                <span className="font-semibold text-foreground">Qachon:</span> {format(new Date(owner.archivedAt), "dd.MM.yyyy HH:mm")}
+              </p>
+            )}
+          </div>
+        );
+      },
+    }
+  ] : []),
 
   {
     id: "actions",
     size: 150,
     cell: ({ row }) => {
-      const owner = row.original
-      const { deleteOwner } = useOwners();
+      const owner = row.original;
+      const { deleteOwner, updateOwner } = useOwners();
       const { openSidebar, closeSidebar } = useSidebarStore();
-      const [isOpen, setIsOpen] = useState(false);
       const [menuOpen, setMenuOpen] = useState(false);
 
       const handleEdit = () => {
@@ -118,13 +99,21 @@ export const columns: ColumnDef<Owner>[] = [
         });
       };
 
-      const handleDelete = async () => {
+      const handleRestore = async () => {
         try {
-          await deleteOwner.mutateAsync(owner.id);
-          setIsOpen(false);
+          await updateOwner.mutateAsync({ id: owner.id, dto: { isActive: true } });
           setMenuOpen(false);
         } catch (error) {
-          console.error("Error deleting owner:", error);
+          console.error("Error restoring owner:", error);
+        }
+      };
+
+      const handleArchive = async () => {
+        try {
+          await deleteOwner.mutateAsync(owner.id);
+          setMenuOpen(false);
+        } catch (error) {
+          console.error("Error archiving owner:", error);
         }
       };
 
@@ -139,54 +128,27 @@ export const columns: ColumnDef<Owner>[] = [
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-[160px]">
               <DropdownMenuLabel>Amallar</DropdownMenuLabel>
-              <DropdownMenuItem onClick={handleEdit} className="cursor-pointer">
-                <Edit className="mr-2 h-4 w-4 text-muted-foreground" />
-                Tahrirlash
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
-                <AlertDialogTrigger asChild>
-                  <DropdownMenuItem
-                    onSelect={(e) => e.preventDefault()}
-                    className="text-destructive cursor-pointer focus:bg-destructive/10 focus:text-destructive"
-                  >
-                    <Trash className="mr-2 h-4 w-4" />
-                    O'chirish
+              {!isArchived ? (
+                <>
+                  <DropdownMenuItem onClick={handleEdit} className="cursor-pointer">
+                    <Edit className="mr-2 h-4 w-4 text-muted-foreground" />
+                    Tahrirlash
                   </DropdownMenuItem>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      Haqiqatan ham o'chirmoqchimisiz?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Bu amalni ortga qaytarib bo'lmaydi. Bu egaga tegishli
-                      barcha ma'lumotlar tizimdan o'chiriladi.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Bekor qilish</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleDelete}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      disabled={deleteOwner.isPending}
-                    >
-                      {deleteOwner.isPending ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          O'chirilmoqda...
-                        </>
-                      ) : (
-                        "Ha, o'chirish"
-                      )}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                  <DropdownMenuItem onClick={handleArchive} className="cursor-pointer text-amber-600 focus:text-amber-600 focus:bg-amber-50">
+                    <ArchiveIcon className="mr-2 h-4 w-4" />
+                    Arxivlash
+                  </DropdownMenuItem>
+                </>
+              ) : (
+                <DropdownMenuItem onClick={handleRestore} className="cursor-pointer text-emerald-600 focus:text-emerald-600 focus:bg-emerald-50">
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Tiklash
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       );
     },
   },
-]
+];

@@ -47,7 +47,7 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
   
   const { data: storesData, isLoading: storesLoading } = useGetStores({ 
     search: debouncedStoreSearch,
-    onlyFree: !contract,
+    onlyFree: !contract ? true : undefined,
     limit: 1000 
   });
 
@@ -232,7 +232,7 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
           <div className="grid grid-cols-2 gap-4">
             <div className={cn("grid gap-2", !!contract && "cursor-not-allowed")}>
               <Label htmlFor="certificateNumber" className={cn("text-sm font-semibold", !!contract && "cursor-not-allowed")}>
-                {t("contracts.aZ")}
+                {t("contracts.certificate_number")}
               </Label>
               <Input
                 id="certificateNumber"

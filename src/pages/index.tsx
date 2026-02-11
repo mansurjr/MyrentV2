@@ -12,8 +12,10 @@ import ContractsPage from "./contracts";
 import ArchivedOwnersPage from "./owners/archive";
 import ArchivedContractsPage from "./contracts/archive";
 import TransactionsPage from "./transactions";
+import ReconciliationPage from "./reconciliation";
 import MapPage from "./map";
 import AttendancePage from "./attendances";
+import StatisticsPage from "./statistics";
 import NotFoundPage from "./not-found";
 import { ErrorBoundary } from "@/components/error/ErrorBoundary";
 
@@ -87,7 +89,7 @@ const routes = [
       },
       {
         path: "/statistics",
-        element: <div>Statistika</div>,
+        element: <StatisticsPage />,
         handle: { title: "nav.statistics" },
       },
       {
@@ -97,7 +99,7 @@ const routes = [
       },
       {
         path: "/reconciliation",
-        element: <div>Hisob-kitob</div>,
+        element: <ReconciliationPage />,
         handle: { title: "nav.reconciliation" },
       },
       {

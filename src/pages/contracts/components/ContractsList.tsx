@@ -2,13 +2,16 @@ import { useState } from "react";
 import { DataTable } from "@/components/DataTable";
 import { useContracts } from "../hooks/useContracts";
 import { columns } from "./columns";
-import { Search, Plus, FilterX, CreditCard, Landmark } from "lucide-react";
+import { Search, Plus, FilterX, CreditCard, Landmark, FileSpreadsheet } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useSidebarStore } from "@/store/useSidebarStore";
 import { Button } from "@/components/ui/button";
 import type { Contract } from "../../../types/api-responses";
 import { ContractForm } from "./ContractForm";
+import { useTranslation } from "react-i18next";
+import { downloadExcelWithAuth } from "@/lib/excel-export";
+import { format } from "date-fns";
 import {
   Select,
   SelectContent,
@@ -18,6 +21,7 @@ import {
 } from "@/components/ui/select";
 
 export function ContractsList() {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [paymentStatus, setPaymentStatus] = useState<string>("all");
   const [paymentType, setPaymentType] = useState<string>("all");
@@ -37,9 +41,34 @@ export function ContractsList() {
     paymentType: paymentType === "all" ? undefined : paymentType as 'ONLINE' | 'BANK_ONLY',
   });
 
+  const handleExport = async () => {
+    const filters = {
+      search: debouncedSearch,
+      isActive: true,
+      paid: paymentStatus === "all" ? undefined : paymentStatus === "paid",
+      paymentType: paymentType === "all" ? undefined : paymentType,
+    };
+    
+    const queryParams = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== "") {
+        queryParams.append(key, value.toString());
+      }
+    });
+
+    const baseURL = import.meta.env.VITE_API_URL || "http://localhost:3020/api";
+    const url = `${baseURL}/contracts/export/excel?${queryParams.toString()}`;
+    
+    try {
+      await downloadExcelWithAuth(url, `contracts_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   const handleEdit = (contract: Contract) => {
     openSidebar({
-      title: "Shartnomani tahrirlash",
+      title: t("contracts.edit"),
       content: (
         <ContractForm
           contract={contract}
@@ -53,7 +82,7 @@ export function ContractsList() {
 
   const handleAdd = () => {
     openSidebar({
-      title: "Yangi shartnoma qo'shish",
+      title: t("contracts.add_new"),
       content: (
         <ContractForm
           onSuccess={() => {
@@ -75,9 +104,9 @@ export function ContractsList() {
     <div className="space-y-6 p-6 h-full flex flex-col min-h-0">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between shrink-0">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Shartnomalar</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t("nav.contracts")}</h1>
           <p className="text-muted-foreground">
-            Barcha tadbirkorlar va ularning do'konlari bilan tuzilgan shartnomalarni boshqarish.
+            {t("contracts.description")}
           </p>
         </div>
       </div>
@@ -86,7 +115,7 @@ export function ContractsList() {
         <div className="relative flex-1 w-full max-w-sm">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Qidirish (№, Tadbirkor, Do'kon)..."
+            placeholder={t("contracts.search_placeholder")}
             className="h-10 pl-9 bg-background border-border/50 focus-visible:ring-primary/20 transition-all shadow-sm"
             value={search}
             onChange={(e) => {
@@ -100,13 +129,13 @@ export function ContractsList() {
           <SelectTrigger className="h-10 w-full sm:w-45 bg-background border-border/50 shadow-sm">
             <div className="flex items-center gap-2">
               <CreditCard className="h-4 w-4 text-muted-foreground" />
-              <SelectValue placeholder="To'lov holati" />
+              <SelectValue placeholder={t("contracts.payment_status")} />
             </div>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Barcha holatlar</SelectItem>
-            <SelectItem value="paid">To'langan</SelectItem>
-            <SelectItem value="debtors">Qarzdorlar</SelectItem>
+            <SelectItem value="all">{t("contracts.all_statuses")}</SelectItem>
+            <SelectItem value="paid">{t("common.paid")}</SelectItem>
+            <SelectItem value="debtors">{t("contracts.debtors")}</SelectItem>
           </SelectContent>
         </Select>
 
@@ -114,25 +143,34 @@ export function ContractsList() {
           <SelectTrigger className="h-10 w-full sm:w-45 bg-background border-border/50 shadow-sm">
             <div className="flex items-center gap-2">
               <Landmark className="h-4 w-4 text-muted-foreground" />
-              <SelectValue placeholder="To'lov turi" />
+              <SelectValue placeholder={t("contracts.payment_type")} />
             </div>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Barcha turlar</SelectItem>
-            <SelectItem value="ONLINE">Onlayn</SelectItem>
-            <SelectItem value="BANK_ONLY">Bank orqali</SelectItem>
+            <SelectItem value="all">{t("contracts.all_types")}</SelectItem>
+            <SelectItem value="ONLINE">{t("contracts.online")}</SelectItem>
+            <SelectItem value="BANK_ONLY">{t("contracts.bank_only")}</SelectItem>
           </SelectContent>
         </Select>
         {(search || paymentStatus !== "all" || paymentType !== "all") && (
           <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
             <FilterX className="mr-2 h-4 w-4" />
-            Saralashni tozalash
+            {t("contracts.clear_filters")}
           </Button>
         )}
         <div className="flex-1" />
         <Button onClick={handleAdd} className="w-full sm:w-auto shadow-md">
           <Plus className="mr-2 h-4 w-4" />
-          Yangi qo'shish
+          {t("common.add_new")}
+        </Button>
+        <Button 
+          variant="outline" 
+          size="icon"
+          onClick={handleExport}
+          className="bg-background border-border/50 hover:bg-muted/50 shadow-sm"
+          title={t("common.export_excel")}
+        >
+          <FileSpreadsheet className="h-4 w-4 text-green-600" />
         </Button>
       </div>
 
@@ -140,7 +178,7 @@ export function ContractsList() {
         {isLoading ? (
           <div className="grid gap-6 py-20 place-items-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            <p className="text-muted-foreground font-medium">Yuklanmoqda...</p>
+            <p className="text-muted-foreground font-medium">{t("common.loading")}</p>
           </div>
         ) : (
           <DataTable

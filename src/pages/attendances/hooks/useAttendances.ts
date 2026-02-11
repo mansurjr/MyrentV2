@@ -3,8 +3,7 @@ import baseApi from "../../../api";
 import type { Attendance, AttendanceListResponse } from "../../../types/api-responses";
 
 export interface IAttendanceOptions {
-  dateFrom?: string;
-  dateTo?: string;
+  date?: string;
   stallId?: number;
   page?: number;
   limit?: number;
@@ -38,6 +37,7 @@ export const useAttendances = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["attendances"] });
+      queryClient.invalidateQueries({ queryKey: ["stalls"] });
     },
   });
 
@@ -48,6 +48,18 @@ export const useAttendances = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["attendances"] });
+      queryClient.invalidateQueries({ queryKey: ["stalls"] });
+    },
+  });
+
+  const deleteAttendance = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await baseApi.delete(`/attendances/${id}`);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["attendances"] });
+      queryClient.invalidateQueries({ queryKey: ["stalls"] });
     },
   });
 
@@ -55,5 +67,6 @@ export const useAttendances = () => {
     useGetAttendances,
     createAttendance,
     updateAttendance,
+    deleteAttendance,
   };
 };

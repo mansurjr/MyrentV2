@@ -25,9 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
 import { useAuth } from "@/hooks/api/useAuth";
-import { ModeToggle } from "./mode-toggle";
 
 interface AppHeaderProps {
   onLogout: () => void;
@@ -43,14 +41,23 @@ export function AppHeader({ onLogout }: AppHeaderProps) {
     return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase() || "JD";
   };
 
-  const breadcrumbs = matches
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .filter((match: any) => match.handle && match.handle.title)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .map((match: any) => ({
-      title: t(match.handle.title),
-      path: match.pathname,
-    }));
+  const breadcrumbs = React.useMemo(() => 
+    matches
+      .filter((match: any) => match.handle && match.handle.title)
+      .map((match: any) => ({
+        title: t(match.handle.title),
+        path: match.pathname,
+      })),
+    [matches, t]
+  );
+
+  React.useEffect(() => {
+    if (breadcrumbs.length > 0) {
+      document.title = `${breadcrumbs[breadcrumbs.length - 1].title} | Bozor Management`;
+    } else {
+      document.title = "Bozor Management";
+    }
+  }, [breadcrumbs]);
 
   const changeLanguage = (lng: string) => {
     i18n.changeLanguage(lng);
@@ -101,10 +108,11 @@ export function AppHeader({ onLogout }: AppHeaderProps) {
             <DropdownMenuItem onClick={() => changeLanguage("uz_cyr")}>
               Ўзбекча (Кирилл)
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => changeLanguage("en")}>
+              English
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-
-        <ModeToggle />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

@@ -4,9 +4,22 @@ import { useTranslation } from "react-i18next";
 import { useStores } from "../stores/hooks/useStores";
 import { useStalls } from "../stalls/hooks/useStalls";
 import { useSections } from "../sections/hooks/useSections";
+import { useContracts } from "../contracts/hooks/useContracts";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Store as StoreIcon, LayoutGrid, Info, Search, Map as MapIcon, Filter } from "lucide-react";
+import { 
+  Loader2, 
+  Store as StoreIcon, 
+  LayoutGrid, 
+  Info, 
+  Search, 
+  Filter,
+  CheckCircle2,
+  CreditCard,
+} from "lucide-react";
+import { useAttendances } from "../attendances/hooks/useAttendances";
+import baseApi from "@/api";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -14,6 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
@@ -34,10 +48,12 @@ export default function MapPage() {
   const [selectedSection, setSelectedSection] = useState<string>("all");
   const debouncedStoreSearch = useDebounce(storeSearch, 500);
   const debouncedStallSearch = useDebounce(stallSearch, 500);
-
+  
   const { useGetStores } = useStores();
   const { useGetStalls } = useStalls();
   const { useGetSections } = useSections();
+  const { automatePaymentRedirect } = useContracts();
+  const { createAttendance } = useAttendances();
 
   const { data: storesData, isLoading: storesLoading } = useGetStores({ limit: 1000, withContracts: true });
   const { data: stallsData, isLoading: stallsLoading } = useGetStalls({ limit: 1000 });
@@ -61,19 +77,71 @@ export default function MapPage() {
     return raw.filter((s: any) => s.stallNumber?.toLowerCase().includes(debouncedStallSearch.toLowerCase()));
   }, [stallsData, debouncedStallSearch, selectedSection]);
 
+  const itemData = useMemo(() => {
+    if (!selectedItem) return null;
+    if (selectedItem.type === 'store') {
+      return storesData?.data?.find(s => s.id === selectedItem.data.id) || selectedItem.data;
+    }
+    return stallsData?.data?.find(s => s.id === selectedItem.data.id) || selectedItem.data;
+  }, [selectedItem, storesData, stallsData]);
+
+  const todayAttendance = useMemo(() => {
+    if (selectedItem?.type !== 'stall' || !itemData) return null;
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    return itemData.attendances?.find((a: any) => 
+      format(new Date(a.date), "yyyy-MM-dd") === todayStr
+    );
+  }, [selectedItem, itemData]);
+
+  const handleQuickAttendance = async () => {
+    if (selectedItem?.type !== 'stall' || !itemData) return;
+    try {
+      const dailyFee = Number(itemData.dailyFee) || 0;
+      await createAttendance.mutateAsync({
+        stallId: itemData.id,
+        date: format(new Date(), "yyyy-MM-dd"),
+        status: 'UNPAID',
+        amount: dailyFee,
+      });
+    } catch (error) {
+      console.error("Attendance creation error:", error);
+    }
+  };
+
+  const handlePay = async () => {
+    if (!todayAttendance) return;
+    const isMyRent = window.location.hostname.includes("myrent.uz");
+    const type = isMyRent ? 'payme' : 'click';
+    try {
+      const response = await baseApi.get(`/attendances/${todayAttendance.id}/pay/`, {
+        params: { type },
+      });
+      if (response.data.url) {
+        window.open(response.data.url, '_blank');
+      }
+    } catch (error) {
+      console.error("Payment error:", error);
+    }
+  };
+
+  const handleContractPay = async () => {
+    if (!itemData?.contracts?.[0]) return;
+    const contract = itemData.contracts[0];
+    await automatePaymentRedirect(contract.id, {
+      months: contract.paymentSnapshot?.debtMonths || 1,
+    });
+  };
+
+  const isMutating = createAttendance.isPending;
+
   return (
     <div className="flex flex-col h-[calc(100vh-100px)] space-y-6 p-6 overflow-hidden">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary/10 rounded-lg">
-            <MapIcon className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">{t("nav.map")}</h1>
-            <p className="text-muted-foreground">
-              Barcha do'konlar va rastalarning holati xaritasi.
-            </p>
-          </div>
+        <div className="flex flex-col">
+          <h1 className="text-3xl font-bold tracking-tight">{t("nav.map")}</h1>
+          <p className="text-muted-foreground">
+            {t("map.description")}
+          </p>
         </div>
       </div>
 
@@ -106,7 +174,7 @@ export default function MapPage() {
                   />
                 </div>
                 <Select value={selectedSection} onValueChange={setSelectedSection}>
-                  <SelectTrigger className="w-full sm:w-[180px] h-9 bg-background border-border/50">
+                  <SelectTrigger className="w-full sm:w-50 h-9 bg-background border-border/50">
                     <div className="flex items-center gap-2">
                       <Filter className="h-3.5 w-3.5 text-muted-foreground" />
                       <SelectValue placeholder={t("nav.sections")} />
@@ -166,7 +234,7 @@ export default function MapPage() {
                         )}
                       >
                         <span className="text-sm font-black leading-none">{store.storeNumber}</span>
-                        <span className="text-[10px] font-medium opacity-60 mt-1">{store.area}m²</span>
+                        <span className="text-[10px] font-medium opacity-60 mt-1">{store.area} {t("common.area_unit")}</span>
                         {isTaken && !isPaid && (
                           <div className="absolute top-1 right-1">
                             <span className="flex h-2 w-2 rounded-full bg-red-500 animate-pulse" />
@@ -180,7 +248,7 @@ export default function MapPage() {
             </section>
 
             <section>
-              <div className="flex items-center gap-3 mb-4 sticky top-0 bg-background z-10 py-1">
+              <div className="flex items-center gap-3 mb-4  bg-background  py-1">
                 <h2 className="text-xl font-bold flex items-center gap-2">
                   <LayoutGrid className="h-5 w-5 text-orange-500" />
                   {t("nav.stalls")}
@@ -220,7 +288,7 @@ export default function MapPage() {
                         )}
                       >
                         <span className="text-xs font-bold leading-none">{stall.stallNumber}</span>
-                        <span className="text-[9px] opacity-60 mt-0.5">{stall.area}m²</span>
+                        <span className="text-[9px] opacity-60 mt-0.5">{stall.area}{t("common.area_unit")}</span>
                       </button>
                     );
                   })}
@@ -252,7 +320,7 @@ export default function MapPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="p-3 bg-muted/40 rounded-lg border border-border/50">
                 <p className="text-xs text-muted-foreground mb-1">{t("map.area")}</p>
-                <p className="text-lg font-bold">{selectedItem?.data.area} m²</p>
+                <p className="text-lg font-bold">{selectedItem?.data.area} {t("common.area_unit")}</p>
               </div>
               <div className="p-3 bg-muted/40 rounded-lg border border-border/50">
                 <p className="text-xs text-muted-foreground mb-1">{t("map.status")}</p>
@@ -340,6 +408,55 @@ export default function MapPage() {
               )}
             </div>
           </div>
+
+          {selectedItem?.type === 'stall' ? (
+            <DialogFooter className="mt-6 flex flex-col gap-2">
+              {!todayAttendance ? (
+                <Button 
+                  onClick={handleQuickAttendance} 
+                  className="w-full bg-orange-500 hover:bg-orange-600 font-bold"
+                  disabled={isMutating}
+                >
+                  {isMutating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                  {t("map.quick_attendance")}
+                </Button>
+              ) : todayAttendance.status === 'UNPAID' ? (
+                <div className="flex flex-col gap-2 w-full">
+                  <Button 
+                    onClick={handlePay} 
+                    className="bg-blue-600 hover:bg-blue-700 font-bold w-full"
+                  >
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    {t("common.pay")}
+                  </Button>
+                </div>
+              ) : (
+                <div className="w-full p-2 bg-blue-50 text-blue-700 rounded-lg text-center text-sm font-bold flex items-center justify-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" />
+                  {t("map.payment_received")}
+                </div>
+              )}
+            </DialogFooter>
+          ) : selectedItem?.type === 'store' && itemData?.contracts?.[0] ? (
+            <DialogFooter className="mt-6 flex flex-col gap-2">
+              {!itemData.contracts[0].isPaidCurrentMonth ? (
+                <div className="flex flex-col gap-2 w-full">
+                  <Button 
+                    onClick={handleContractPay}
+                    className="bg-blue-600 hover:bg-blue-700 font-bold w-full"
+                  >
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    {t("common.pay")}
+                  </Button>
+                </div>
+              ) : (
+                <div className="w-full p-2 bg-blue-50 text-blue-700 rounded-lg text-center text-sm font-bold flex items-center justify-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" />
+                  {t("common.paid")}
+                </div>
+              )}
+            </DialogFooter>
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>

@@ -3,14 +3,18 @@ import { DataTable } from "@/components/DataTable";
 import { useStalls } from "../hooks/useStalls";
 import { columns } from "./columns";
 import { StallForm } from "./StallForm";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, FileSpreadsheet } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useSidebarStore } from "@/store/useSidebarStore";
 import { Button } from "@/components/ui/button";
 import type { Stall } from "../../../types/api-responses";
+import { useTranslation } from "react-i18next";
+import { downloadExcelWithAuth } from "@/lib/excel-export";
+import { format } from "date-fns";
 
 export function StallsList() {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -23,9 +27,30 @@ export function StallsList() {
     search: debouncedSearch,
   });
 
+  const handleExport = async () => {
+    const filters = {
+      search: debouncedSearch,
+    };
+    
+    const queryParams = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== "") {
+        queryParams.append(key, value.toString());
+      }
+    });
+
+    const baseURL = import.meta.env.VITE_API_URL || "http://localhost:3020/api";
+    const url = `${baseURL}/stalls/export/excel?${queryParams.toString()}`;
+    
+    try {
+      await downloadExcelWithAuth(url, `stalls_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   const { openSidebar, closeSidebar } = useSidebarStore();
   
-
   const stallsData = useMemo(() => {
     if (!data) return [];
     if (Array.isArray(data)) return data;
@@ -35,7 +60,7 @@ export function StallsList() {
 
   const handleEdit = (stall: Stall) => {
     openSidebar({
-      title: "Rastani tahrirlash",
+      title: t("stalls.edit"),
       content: (
         <StallForm
           editData={stall}
@@ -48,7 +73,7 @@ export function StallsList() {
 
   const handleAdd = () => {
     openSidebar({
-      title: "Yangi rasta qo'shish",
+      title: t("stalls.add_new"),
       content: (
         <StallForm
           onSuccess={closeSidebar}
@@ -62,9 +87,9 @@ export function StallsList() {
     <div className="space-y-6 p-6 h-full flex flex-col min-h-0">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between shrink-0">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Rastalar</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t("nav.stalls")}</h1>
           <p className="text-muted-foreground">
-            Bozor rastalari va ularning maydonlarini boshqarish.
+            {t("stalls.description")}
           </p>
         </div>
       </div>
@@ -73,7 +98,7 @@ export function StallsList() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Qidirish (raqam, bo'lim)..."
+            placeholder={t("stalls.search_placeholder")}
             className="h-10 pl-8 bg-background border-border/50 focus-visible:ring-primary/20 transition-all font-medium"
             value={search}
             onChange={(e) => {
@@ -85,7 +110,16 @@ export function StallsList() {
         <div className="flex-1" />
         <Button onClick={handleAdd} className="w-full sm:w-auto shadow-md">
           <Plus className="mr-2 h-4 w-4" />
-          Yangi qo'shish
+          {t("common.add_new")}
+        </Button>
+        <Button 
+          variant="outline" 
+          size="icon"
+          onClick={handleExport}
+          className="bg-background border-border/50 hover:bg-muted/50 shadow-sm"
+          title={t("common.export_excel")}
+        >
+          <FileSpreadsheet className="h-4 w-4 text-green-600" />
         </Button>
       </div>
 
@@ -93,7 +127,7 @@ export function StallsList() {
         {isLoading ? (
           <div className="grid gap-4 py-10 place-items-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            <p className="text-muted-foreground">Yuklanmoqda...</p>
+            <p className="text-muted-foreground">{t("common.loading")}</p>
           </div>
         ) : (
           <DataTable

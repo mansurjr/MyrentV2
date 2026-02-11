@@ -4,6 +4,8 @@ import { format } from "date-fns";
 import { uz } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { QrCode } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const columns: ColumnDef<Transaction>[] = [
   {
@@ -93,6 +95,23 @@ export const columns: ColumnDef<Transaction>[] = [
           <p className="text-muted-foreground font-mono">{format(date, "HH:mm")}</p>
         </div>
       );
+    },
+  },
+  {
+    id: "receipt",
+    header: "Chek",
+    cell: ({ row }) => {
+      const transaction = row.original;
+      if (transaction.fiscalQrCode) {
+        return (
+          <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0">
+            <a href={transaction.fiscalQrCode} target="_blank" rel="noopener noreferrer">
+              <QrCode className="h-4 w-4 text-primary" />
+            </a>
+          </Button>
+        );
+      }
+      return "—";
     },
   },
 ];

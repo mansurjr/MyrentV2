@@ -65,7 +65,7 @@ export function MapModal({ isOpen, onOpenChange }: MapModalProps) {
                 <DialogDescription className="text-xs">Bozordagi barcha joylar holati</DialogDescription>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-4 mr-8">
               <div className="relative w-64 hidden md:block">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />

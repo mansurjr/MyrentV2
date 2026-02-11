@@ -37,7 +37,15 @@
     "saving": "Сақланмоқда...",
     "cancel": "Бекор қилиш",
     "loading": "Юкланмоқда...",
-    "all": "Барчаси"
+    "all": "Барчаси",
+    "login_error_title": "Хатолик",
+    "login_error_403": "Емаил ёки парол хато",
+    "login_error_general": "Тизимга киришда хатолик юз берди",
+    "export_excel": "Excelга экспорт",
+    "restore": "Тиклаш",
+    "archived": "Архивланган",
+    "archived_by": "Томонидан архивланиши",
+    "archived_at": "Архивланган сана"
   },
   "contracts": {
     "title": "Шартномалар",
@@ -55,6 +63,47 @@
     "store": "Дўкон",
     "save": "Шартномани сақлаш"
   },
+  "reconciliation": {
+    "description": "Дўконлар, тадбиркорлар ва шартномалар бўйича тўловлар ҳолатини кўриш ва назорат қилиш.",
+    "select_store": "Дўкон танланг",
+    "select_owner": "Тадбиркор танланг",
+    "store_number_placeholder": "Дўкон рақами...",
+    "search_owner_placeholder": "Исм ёки СТИР...",
+    "not_found": "Топилмади",
+    "no_department": "Бўлимсиз",
+    "start_instruction": "Ҳисоб-китобни бошлаш учун",
+    "select_instruction": "Чап томондан {{type}} танланг",
+    "store_type": "дўконни",
+    "owner_type": "тадбиркорни",
+    "contracts": "Шартномалар",
+    "store_no": "Дўкон №",
+    "archived_items": "Архивдагилар",
+    "no_contracts": "Ҳеч қандай шартнома топилмади",
+    "no_active_contracts": "Фаол шартномалар топилмади. Архивни кўришни хоҳлайсизми?",
+    "archived_status": "Архивланган",
+    "monthly_fee": "Ойлик тўлов",
+    "paid_months": "Тўланган ойлар",
+    "unpaid_months": "Қарздор ойлар",
+    "remaining_term": "Қолган муддат",
+    "months_unit": "ой",
+    "payment_schedule": "Тўловлар графиги",
+    "payment_status_by_month": "Ойлар бўйича тўлов ҳолати",
+    "year": "Йил",
+    "successfully_paid": "Муваффақиятли тўланган",
+    "unpaid_debt": "Тўланмаган қарздорлик",
+    "future_payment": "Келгуси тўлов",
+    "confirm_payment": "Тўловни тасдиқланг",
+    "confirm_message": "{{label}} учун {{amount}} UZS миқдорида тўловни қайд этмоқчимисиз?",
+    "confirm_note": "Бу амал шартноманинг тўлов ҳолатини янгилайди ва транзакция яратади.",
+    "pay_debt": "Қарздорликни тўлаш",
+    "advance_payment": "Олдиндан тўлов",
+    "pay_specific_month": "Ой учун тўлаш",
+    "select_months": "Ойлар сонини танланг",
+    "pay_via_click": "Click орқали тўлаш",
+    "pay_via_payme": "Payme орқали тўлаш",
+    "processing_payment": "Тўловга йўналтирилмоқда...",
+    "payment_intent_desc": "Тўлов тури ва ойлар сонини танланг"
+  },
   "map": {
     "details": "маълумотлари",
     "area": "Майдони",
@@ -71,5 +120,11 @@
     "daily_status": "Кунлик ҳолат",
     "occupied": "Банд",
     "no_description": "Ушбу жой ҳақида тавсиф мавжуд емас."
+  },
+  "login": {
+    "title": "Ҳисобга кириш",
+    "email": "Електрон почта",
+    "password": "Парол",
+    "submit": "Кириш"
   }
 }

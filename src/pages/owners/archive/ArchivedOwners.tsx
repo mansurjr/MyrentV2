@@ -1,17 +1,23 @@
 import { DataTable } from "@/components/DataTable";
 import { useOwners } from "../hooks/useOwners";
-import { columns } from "../components/columns";
-import { Search, Archive as ArchiveIcon } from "lucide-react";
+import { getColumns } from "../components/columns";
+import { Search, Archive as ArchiveIcon, FileSpreadsheet } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
+import { downloadExcelWithAuth } from "@/lib/excel-export";
+import { format } from "date-fns";
+import { useTranslation } from "react-i18next";
 
 export function ArchivedOwners() {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const debouncedSearch = useDebounce(search, 500);
 
+  const columns = getColumns(true);
   const ownersHook = useOwners();
   const { data, isLoading } = ownersHook.useGetOwners({ 
     page, 
@@ -19,6 +25,29 @@ export function ArchivedOwners() {
     search: debouncedSearch,
     isActive: false
   });
+
+  const handleExport = async () => {
+    const filters = {
+      search: debouncedSearch,
+      isActive: false,
+    };
+    
+    const queryParams = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== "") {
+        queryParams.append(key, value.toString());
+      }
+    });
+
+    const baseURL = import.meta.env.VITE_API_URL || "http://localhost:3020/api";
+    const url = `${baseURL}/owners/export/excel?${queryParams.toString()}`;
+    
+    try {
+      await downloadExcelWithAuth(url, `archived_owners_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   return (
     <div className="space-y-6 p-6 h-full flex flex-col min-h-0">
@@ -49,17 +78,27 @@ export function ArchivedOwners() {
             }}
           />
         </div>
+        <div className="flex-1" />
+        <Button 
+          variant="outline" 
+          size="icon"
+          onClick={handleExport}
+          className="bg-background border-border/50 hover:bg-muted/50 shadow-sm"
+          title={t("common.export_excel")}
+        >
+          <FileSpreadsheet className="h-4 w-4 text-green-600" />
+        </Button>
       </div>
 
       <div className="flex-1 min-h-0">
         {isLoading ? (
           <div className="grid gap-4 py-10 place-items-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            <p className="text-muted-foreground">Yuklanmoqda...</p>
+            <p className="text-muted-foreground">{t("common.loading")}</p>
           </div>
         ) : (
           <DataTable 
-            columns={columns.filter(col => col.id !== "actions")} 
+            columns={columns} 
             data={data?.data || []} 
             pageCount={data?.pagination?.totalPages || 1}
             pageIndex={page}

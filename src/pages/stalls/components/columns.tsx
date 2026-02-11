@@ -1,6 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import type { Stall } from "../../../types/api-responses";
-import { MoreHorizontal, Edit, Trash, Loader2 } from "lucide-react";
+import { MoreHorizontal, Edit, Trash, Loader2, Eye, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -23,6 +23,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useNavigate } from "react-router-dom";
+import { format, startOfMonth, endOfMonth } from "date-fns";
 
 interface ActionCellProps {
   stall: Stall;
@@ -31,8 +33,16 @@ interface ActionCellProps {
 
 const ActionCell = ({ stall, onEdit }: ActionCellProps) => {
   const { deleteStall } = useStalls();
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const handleSeeTransactions = () => {
+    const search = stall.stallNumber || "";
+    const dateFrom = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+    const dateTo = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+    navigate(`/transactions?search=${encodeURIComponent(search)}&source=attendance&dateFrom=${dateFrom}&dateTo=${dateTo}`);
+  };
 
   const handleDelete = async () => {
     try {
@@ -64,6 +74,13 @@ const ActionCell = ({ stall, onEdit }: ActionCellProps) => {
           >
             <Edit className="mr-2 h-4 w-4 text-muted-foreground" />
             Tahrirlash
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={handleSeeTransactions}
+            className="cursor-pointer"
+          >
+            <Eye className="mr-2 h-4 w-4 text-muted-foreground" />
+            To'lovlarni ko'rish
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
@@ -177,6 +194,25 @@ export const columns = (onEdit: (stall: Stall) => void): ColumnDef<Stall>[] => [
           )}
         </div>
       );
+    },
+  },
+  {
+    id: "receipt",
+    header: "Chek",
+    cell: ({ row }) => {
+      const stall = row.original;
+      const latestPaidAttendance = stall.attendances?.find(a => a.status === "PAID" && (a as any).transaction?.fiscalQrCode);
+      
+      if (latestPaidAttendance) {
+        return (
+          <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0" title="Oxirgi to'lov cheki">
+            <a href={(latestPaidAttendance as any).transaction.fiscalQrCode} target="_blank" rel="noopener noreferrer">
+              <QrCode className="h-4 w-4 text-emerald-600" />
+            </a>
+          </Button>
+        );
+      }
+      return "—";
     },
   },
   {

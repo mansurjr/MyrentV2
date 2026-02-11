@@ -2,12 +2,16 @@ import { useState } from "react";
 import { DataTable } from "@/components/DataTable";
 import { useContracts } from "../hooks/useContracts";
 import { columns } from "../components/columns";
-import { Search, Archive as ArchiveIcon, FilterX } from "lucide-react";
+import { Search, Archive as ArchiveIcon, FilterX, FileSpreadsheet } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Button } from "@/components/ui/button";
+import { downloadExcelWithAuth } from "@/lib/excel-export";
+import { format } from "date-fns";
+import { useTranslation } from "react-i18next";
 
 export function ArchivedContracts() {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -20,6 +24,29 @@ export function ArchivedContracts() {
     search: debouncedSearch,
     isActive: false,
   });
+
+  const handleExport = async () => {
+    const filters = {
+      search: debouncedSearch,
+      isActive: false,
+    };
+    
+    const queryParams = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== "") {
+        queryParams.append(key, value.toString());
+      }
+    });
+
+    const baseURL = import.meta.env.VITE_API_URL || "http://localhost:3020/api";
+    const url = `${baseURL}/contracts/export/excel?${queryParams.toString()}`;
+    
+    try {
+      await downloadExcelWithAuth(url, `archived_contracts_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const clearFilters = () => {
     setSearch("");
@@ -62,17 +89,27 @@ export function ArchivedContracts() {
             Tozalash
           </Button>
         )}
+        <div className="flex-1" />
+        <Button 
+          variant="outline" 
+          size="icon"
+          onClick={handleExport}
+          className="bg-background border-border/50 hover:bg-muted/50 shadow-sm"
+          title={t("common.export_excel")}
+        >
+          <FileSpreadsheet className="h-4 w-4 text-green-600" />
+        </Button>
       </div>
 
       <div className="flex-1 min-h-0">
         {isLoading ? (
           <div className="grid gap-6 py-20 place-items-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            <p className="text-muted-foreground font-medium">Yuklanmoqda...</p>
+            <p className="text-muted-foreground font-medium">{t("common.loading")}</p>
           </div>
         ) : (
           <DataTable
-            columns={columns(() => {}).filter(col => col.id !== "actions" && col.id !== "paymentStatus")}
+            columns={columns(() => {}, true).filter(col => col.id !== "paymentStatus")}
             data={data?.data || []}
             pageCount={data?.pagination?.totalPages || 1}
             pageIndex={page}
@@ -89,5 +126,3 @@ export function ArchivedContracts() {
     </div>
   );
 }
-
-

@@ -1,6 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import type { Contract } from "../../../types/api-responses";
-import { MoreHorizontal, Edit, Loader2, FileText, FileX, Calendar, Smartphone, Landmark } from "lucide-react";
+import { MoreHorizontal, Edit, Loader2, FileText, FileX, Calendar, Smartphone, Landmark, Eye, CreditCard, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -26,27 +26,56 @@ import {
 } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { uz } from "date-fns/locale";
+import { useNavigate } from "react-router-dom";
+
+import { ManualPayDialog } from "./ManualPayDialog";
+import { useTranslation } from "react-i18next";
 
 interface ActionCellProps {
   contract: Contract;
   onEdit: (contract: Contract) => void;
+  isArchived: boolean;
 }
 
-const ActionCell = ({ contract, onEdit }: ActionCellProps) => {
-  const { updateContract } = useContracts();
+const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
+  const { t } = useTranslation();
+  const { updateContract, deleteContract, automatePaymentRedirect } = useContracts();
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
+  const [isManualPayOpen, setIsManualPayOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const handleSeeTransactions = () => {
+    const search = contract.certificateNumber || "";
+    navigate(`/transactions?search=${encodeURIComponent(search)}&source=contract`);
+  };
+
+  const handlePay = async () => {
+    setMenuOpen(false);
+    await automatePaymentRedirect(contract.id, {
+      months: contract.paymentSnapshot?.debtMonths || 1,
+    });
+  };
 
   const handleFinish = async () => {
     try {
-      await updateContract.mutateAsync({ 
-        id: contract.id, 
-        dto: { isActive: false } 
-      });
+      await deleteContract.mutateAsync(contract.id);
       setIsOpen(false);
       setMenuOpen(false);
     } catch (error) {
-      console.error("Error finishing contract:", error);
+      console.error("Error archiving contract:", error);
+    }
+  };
+
+  const handleRestore = async () => {
+    try {
+      await updateContract.mutateAsync({ 
+        id: contract.id, 
+        dto: { isActive: true } 
+      });
+      setMenuOpen(false);
+    } catch (error) {
+      console.error("Error restoring contract:", error);
     }
   };
 
@@ -59,62 +88,106 @@ const ActionCell = ({ contract, onEdit }: ActionCellProps) => {
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[180px]">
-          <DropdownMenuLabel>Amallar</DropdownMenuLabel>
-          <DropdownMenuItem
-            onClick={() => {
-              onEdit(contract);
-              setMenuOpen(false);
-            }}
-            className="cursor-pointer"
-          >
-            <Edit className="mr-2 h-4 w-4 text-muted-foreground" />
-            Tahrirlash
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
-            <AlertDialogTrigger asChild>
+        <DropdownMenuContent align="end" className="w-[200px]">
+          <DropdownMenuLabel>{t("common.data")}</DropdownMenuLabel>
+          {!isArchived ? (
+            <>
               <DropdownMenuItem
-                onSelect={(e) => e.preventDefault()}
-                className="text-orange-600 cursor-pointer focus:bg-orange-50 focus:text-orange-700"
+                onClick={() => {
+                  onEdit(contract);
+                  setMenuOpen(false);
+                }}
+                className="cursor-pointer"
               >
-                <FileX className="mr-2 h-4 w-4" />
-                Shartnomani yakunlash
+                <Edit className="mr-2 h-4 w-4 text-muted-foreground" />
+                {t("common.save")}
               </DropdownMenuItem>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Shartnomani yakunlamoqchimisiz?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Ushbu shartnoma faol bo'lmagan holatga o'tkaziladi va arxivga tushadi. Bu amal do'konni bo'shatadi.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Bekor qilish</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleFinish}
-                  className="bg-orange-600 text-white hover:bg-orange-700"
-                  disabled={updateContract.isPending}
+              {!contract.isPaidCurrentMonth && contract.paymentType === "ONLINE" && (
+                <DropdownMenuItem
+                  onClick={handlePay}
+                  className="cursor-pointer text-blue-600 focus:text-blue-700 focus:bg-blue-50"
                 >
-                  {updateContract.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Yakunlanmoqda...
-                    </>
-                  ) : (
-                    "Ha, yakunlash"
-                  )}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  {t("common.pay")}
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem
+                onClick={() => {
+                  setIsManualPayOpen(true);
+                  setMenuOpen(false);
+                }}
+                className="cursor-pointer text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50"
+              >
+                <CreditCard className="mr-2 h-4 w-4" />
+                {t("contracts.manual_pay")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleSeeTransactions}
+                className="cursor-pointer"
+              >
+                <Eye className="mr-2 h-4 w-4 text-muted-foreground" />
+                {t("nav.pay_details")}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+                <AlertDialogTrigger asChild>
+                  <DropdownMenuItem
+                    onSelect={(e) => e.preventDefault()}
+                    className="text-orange-600 cursor-pointer focus:bg-orange-50 focus:text-orange-700"
+                  >
+                    <FileX className="mr-2 h-4 w-4" />
+                    Shartnomani yakunlash
+                  </DropdownMenuItem>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Shartnomani yakunlamoqchimisiz?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Ushbu shartnoma faol bo'lmagan holatga o'tkaziladi va arxivga tushadi. Bu amal do'konni bo'shatadi.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Bekor qilish</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleFinish}
+                      className="bg-orange-600 text-white hover:bg-orange-700"
+                      disabled={deleteContract.isPending}
+                    >
+                      {deleteContract.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Yakunlanmoqda...
+                        </>
+                      ) : (
+                        "Ha, yakunlash"
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          ) : (
+            <DropdownMenuItem
+              onClick={handleRestore}
+              className="cursor-pointer text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              {t("common.restore")}
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <ManualPayDialog
+        contract={contract}
+        open={isManualPayOpen}
+        onOpenChange={setIsManualPayOpen}
+      />
     </div>
   );
 };
 
-export const columns = (onEdit: (contract: Contract) => void): ColumnDef<Contract>[] => [
+export const columns = (onEdit: (contract: Contract) => void, isArchived: boolean = false): ColumnDef<Contract>[] => [
   {
     accessorKey: "id",
     header: "ID",
@@ -238,10 +311,33 @@ export const columns = (onEdit: (contract: Contract) => void): ColumnDef<Contrac
       );
     },
   },
+  ...(isArchived ? [
+    {
+      id: "archivedInfo",
+      header: "Arxiv ma'lumotlari",
+      cell: ({ row }: { row: any }) => {
+        const contract = row.original;
+        return (
+          <div className="text-xs space-y-1">
+            {contract.archivedBy && (
+              <p className="text-muted-foreground">
+                <span className="font-semibold text-foreground">Kim:</span> {contract.archivedBy.firstName} {contract.archivedBy.lastName}
+              </p>
+            )}
+            {contract.archivedAt && (
+              <p className="text-muted-foreground">
+                <span className="font-semibold text-foreground">Qachon:</span> {format(new Date(contract.archivedAt), "dd.MM.yyyy HH:mm")}
+              </p>
+            )}
+          </div>
+        );
+      },
+    }
+  ] : []),
 
   {
     id: "actions",
     size: 150,
-    cell: ({ row }) => <ActionCell contract={row.original} onEdit={onEdit} />,
+    cell: ({ row }) => <ActionCell contract={row.original} onEdit={onEdit} isArchived={isArchived} />,
   },
 ];

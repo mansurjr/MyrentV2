@@ -3,14 +3,18 @@ import { DataTable } from "@/components/DataTable";
 import { useSections } from "../hooks/useSections";
 import { columns } from "./columns";
 import { SectionForm } from "./SectionForm";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, FileSpreadsheet } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useSidebarStore } from "@/store/useSidebarStore";
 import { Button } from "@/components/ui/button";
 import type { Section } from "../../../types/api-responses";
+import { useTranslation } from "react-i18next";
+import { downloadExcelWithAuth } from "@/lib/excel-export";
+import { format } from "date-fns";
 
 export function SectionsList() {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -18,10 +22,21 @@ export function SectionsList() {
 
   const sectionsHook = useSections();
   const { data: rawData, isLoading } = sectionsHook.useGetSections();
+
+  const handleExport = async () => {
+    const baseURL = import.meta.env.VITE_API_URL || "http://localhost:3020/api";
+    const url = `${baseURL}/sections/export/excel`;
+    
+    try {
+      await downloadExcelWithAuth(url, `sections_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    } catch (error) {
+      console.error(error);
+    }
+  };
   const sections = useMemo(() => {
     if (!rawData) return [];
     if (Array.isArray(rawData)) return rawData;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    
     if (Array.isArray((rawData as any).data)) return (rawData as any).data as Section[];
     return [];
   }, [rawData]);
@@ -99,6 +114,15 @@ export function SectionsList() {
         <Button onClick={handleAdd} className="w-full sm:w-auto shadow-md">
           <Plus className="mr-2 h-4 w-4" />
           Yangi qo'shish
+        </Button>
+        <Button 
+          variant="outline" 
+          size="icon"
+          onClick={handleExport}
+          className="bg-background border-border/50 hover:bg-muted/50 shadow-sm"
+          title={t("common.export_excel")}
+        >
+          <FileSpreadsheet className="h-4 w-4 text-green-600" />
         </Button>
       </div>
 

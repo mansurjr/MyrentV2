@@ -3,14 +3,18 @@ import { DataTable } from "@/components/DataTable";
 import { useSaleTypes } from "../hooks/useSaleTypes";
 import { columns } from "./columns";
 import { SaleTypeForm } from "./SaleTypeForm";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, FileSpreadsheet } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "@/hooks/useDebounce";
 import type { SaleType } from "../../../types/api-responses";
 import { useSidebarStore } from "@/store/useSidebarStore";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "react-i18next";
+import { downloadExcelWithAuth } from "@/lib/excel-export";
+import { format } from "date-fns";
 
 export function SaleTypesList() {
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const debouncedSearch = useDebounce(search, 500);
@@ -21,6 +25,17 @@ export function SaleTypesList() {
     limit: 10,
     search: debouncedSearch,
   });
+
+  const handleExport = async () => {
+    const baseURL = import.meta.env.VITE_API_URL || "http://localhost:3020/api";
+    const url = `${baseURL}/sale-types/export/excel`;
+    
+    try {
+      await downloadExcelWithAuth(url, `sale_types_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const { openSidebar, closeSidebar } = useSidebarStore();
   
@@ -77,6 +92,15 @@ export function SaleTypesList() {
         <Button onClick={handleAdd} className="w-full sm:w-auto shadow-md">
           <Plus className="mr-2 h-4 w-4" />
           Yangi qo'shish
+        </Button>
+        <Button 
+          variant="outline" 
+          size="icon"
+          onClick={handleExport}
+          className="bg-background border-border/50 hover:bg-muted/50 shadow-sm"
+          title={t("common.export_excel")}
+        >
+          <FileSpreadsheet className="h-4 w-4 text-green-600" />
         </Button>
       </div>
 

@@ -69,7 +69,10 @@ export interface Owner {
   createdAt: string;
   updatedAt: string;
   createdById: number;
+  archivedById?: number | null;
+  archivedAt?: string | null;
   createdBy?: Partial<User>;
+  archivedBy?: Partial<User>;
   contracts?: Partial<Contract>[];
 }
 
@@ -107,6 +110,8 @@ export interface PaymentSnapshot {
   paidThrough: string | null;
   nextPeriodStart: string | null;
   monthsAhead: number;
+  debtMonths: number;
+  debtAmount: number;
   hasCurrentPeriodPaid: boolean;
 }
 
@@ -122,11 +127,14 @@ export interface Contract {
   storeId: number;
   isPaidCurrentMonth: boolean;
   createdById: number;
+  archivedById?: number | null;
+  archivedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   owner?: Owner;
   store?: Store;
   createdBy?: User;
+  archivedBy?: Partial<User>;
   transactions?: Transaction[];
   paymentSnapshot?: PaymentSnapshot;
 }
@@ -156,6 +164,9 @@ export interface Transaction {
   updatedAt: string;
   contract?: Partial<Contract>;
   attendance?: Partial<Attendance>;
+  fiscalErrorCode?: number | null;
+  fiscalErrorNote?: string | null;
+  fiscalQrCode?: string | null;
 }
 
 export interface Section {
