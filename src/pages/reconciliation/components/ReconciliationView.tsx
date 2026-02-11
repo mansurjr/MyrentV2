@@ -145,11 +145,13 @@ export function ReconciliationView() {
     const endCalculationMonth = startOfMonth(calculationEndDate);
 
     while (!isAfter(currentMonth, endCalculationMonth)) {
-      const paidThrough = selectedContract.paymentSnapshot?.paidThrough
-        ? parseISO(selectedContract.paymentSnapshot.paidThrough)
-        : null;
+      const getMonthKey = (d: Date) => format(d, "yyyy-MM");
+      const currentMonthKey = getMonthKey(currentMonth);
+      const paidThroughKey = selectedContract.paymentSnapshot?.paidThrough 
+        ? getMonthKey(parseISO(selectedContract.paymentSnapshot.paidThrough))
+        : "";
 
-      const isPaid = paidThrough ? !isBefore(paidThrough, currentMonth) : false;
+      const isPaid = paidThroughKey ? currentMonthKey < paidThroughKey : false;
       const isPast = isBefore(currentMonth, startOfMonth(now));
       const isCurrent = isSameMonth(currentMonth, now);
 
@@ -595,7 +597,7 @@ export function ReconciliationView() {
                                 try {
                                   const firstUnpaidMonth = paymentHistory.find(m => !m.isPaid && m.isPast)?.date;
                                   await automatePaymentRedirect(selectedContract.id, {
-                                    months: stats?.totalUnpaidPastMonths || 0,
+                                    months: selectedContract.paymentSnapshot?.debtMonths || stats?.totalUnpaidPastMonths || 0,
                                     startMonth: firstUnpaidMonth ? format(firstUnpaidMonth, "yyyy-MM") : undefined
                                   });
                                 } finally {
@@ -619,7 +621,7 @@ export function ReconciliationView() {
                               <div className="flex items-center gap-2 justify-center text-[10px] font-bold text-red-600 uppercase">
                                 <AlertCircle className="h-3 w-3" />
                                 {new Intl.NumberFormat("uz-UZ").format(
-                                  stats.totalUnpaidPastMonths * Number(selectedContract.shopMonthlyFee),
+                                  (selectedContract.paymentSnapshot?.debtAmount || (stats?.totalUnpaidPastMonths || 0) * Number(selectedContract.shopMonthlyFee)),
                                 )}{" "}
                                 UZS
                               </div>
