@@ -52,8 +52,7 @@ export function SectionForm({
       if (!exists && currentChecker) {
         list.push({
           id: Number(currentId),
-          firstName: (currentChecker as any).firstName || "",
-          lastName: (currentChecker as any).lastName || "",
+          fullName: (currentChecker as any).fullName || "",
           role: Roles.CHECKER,
         } as any);
       }
@@ -138,7 +137,7 @@ export function SectionForm({
                 {checkers.length > 0 ? (
                   checkers.map((user: any) => (
                     <SelectItem key={user.id} value={String(user.id)}>
-                      {user.firstName} {user.lastName}
+                      {user.fullName}
                     </SelectItem>
                   ))
                 ) : (

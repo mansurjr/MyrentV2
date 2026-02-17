@@ -169,8 +169,8 @@ const ActionCell = ({ store, onEdit }: ActionCellProps) => {
 export const columns = (onEdit: (store: Store) => void): ColumnDef<Store>[] => [
   {
     accessorKey: "id",
-    header: "ID",
-    cell: ({ row }) => <span className="font-mono text-muted-foreground">{row.getValue("id")}</span>,
+    header: "№",
+    cell: ({ row }) => <span className="font-mono text-muted-foreground">{row.index + 1}</span>,
   },
   {
     accessorKey: "storeNumber",

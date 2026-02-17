@@ -141,7 +141,7 @@ export const columns = (onEdit: (section: Section) => void): ColumnDef<Section>[
     cell: ({ row }) => {
       const checker = row.original.assignedChecker;
       if (!checker) return <span className="text-muted-foreground italic">Biriktirilmagan</span>;
-      return `${checker.firstName || ''} ${checker.lastName || ''}`.trim();
+      return checker.fullName || '';
     },
   },
   {

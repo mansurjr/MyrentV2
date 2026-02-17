@@ -9,7 +9,7 @@ export interface ICreateContractDto {
   paymentType: 'ONLINE' | 'BANK_ONLY';
   shopMonthlyFee?: number;
   ownerId: number;
-  storeId: number;
+  storeId: string;
 }
 
 export interface IUpdateContractDto extends Partial<ICreateContractDto> {
@@ -21,7 +21,7 @@ export interface IContractOptions {
   page?: number;
   limit?: number;
   ownerId?: number;
-  storeId?: number;
+  storeId?: string;
   isActive?: boolean;
   paid?: boolean;
   paymentType?: 'ONLINE' | 'BANK_ONLY';
@@ -130,21 +130,20 @@ export const useContracts = () => {
     },
   });
 
-  const getPaymentUrls = async (id: number, params?: IPaymentUrlsDto) => {
-    const response = await baseApi.get<IPaymentUrlsResponse>(`/contracts/${id}/payment-urls`, {
-      params,
+  const getPaymentUrl = async (id: number, periodIds: string[]) => {
+    const response = await baseApi.post<{ url: string }>(`/contracts/${id}/payment-url`, {
+      periodIds,
     });
     return response.data;
   };
 
-  const automatePaymentRedirect = async (id: number, params?: IPaymentUrlsDto) => {
+  const automatePaymentRedirect = async (id: number, periodIds: string[]) => {
     try {
-      const isMyRent = window.location.hostname.includes("myrent.uz");
-      const method = isMyRent ? 'PAYME' : 'CLICK';
-      
-      const response = await getPaymentUrls(id, { ...params, method });
+      const response = await getPaymentUrl(id, periodIds);
       if (response?.url) {
         window.location.assign(response.url);
+      } else {
+        console.error("No payment URL returned");
       }
     } catch (error) {
       console.error("Payment redirection failed:", error);
@@ -160,7 +159,7 @@ export const useContracts = () => {
     deleteContract,
     payContract,
     manualPayContract,
-    getPaymentUrls,
+    getPaymentUrl,
     automatePaymentRedirect,
   };
 };

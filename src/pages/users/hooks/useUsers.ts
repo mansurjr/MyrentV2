@@ -11,8 +11,7 @@ export interface IUserOptions {
 export interface ICreateUserDto {
   email: string;
   password?: string;
-  firstName?: string;
-  lastName?: string;
+  fullName: string;
   role: Roles;
   isActive?: boolean;
 }

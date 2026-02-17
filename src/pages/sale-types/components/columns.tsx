@@ -29,6 +29,7 @@ interface ActionCellProps {
   onEdit: (saleType: SaleType) => void;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 const ActionCell = ({ saleType, onEdit }: ActionCellProps) => {
   const { deleteSaleType } = useSaleTypes();
   const [isOpen, setIsOpen] = useState(false);
@@ -53,7 +54,7 @@ const ActionCell = ({ saleType, onEdit }: ActionCellProps) => {
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[160px]">
+        <DropdownMenuContent align="end" className="w-40">
           <DropdownMenuLabel>Amallar</DropdownMenuLabel>
           <DropdownMenuItem
             onClick={() => {

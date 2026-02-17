@@ -25,8 +25,7 @@ export function UserForm({ editData, onSuccess, onCancel }: UserFormProps) {
   const [formData, setFormData] = useState<ICreateUserDto>({
     email: "",
     password: "",
-    firstName: "",
-    lastName: "",
+    fullName: "",
     role: Roles.CHECKER,
   });
 
@@ -34,16 +33,14 @@ export function UserForm({ editData, onSuccess, onCancel }: UserFormProps) {
     if (editData) {
       setFormData({
         email: editData.email || "",
-        firstName: editData.firstName || "",
-        lastName: editData.lastName || "",
+        fullName: editData.fullName || "",
         role: (editData.role as Roles) || Roles.CHECKER,
       });
     } else {
       setFormData({
         email: "",
         password: "",
-        firstName: "",
-        lastName: "",
+        fullName: "",
         role: Roles.CHECKER,
       });
     }
@@ -73,23 +70,12 @@ export function UserForm({ editData, onSuccess, onCancel }: UserFormProps) {
       <div className="flex-1 overflow-y-auto space-y-6 px-1 py-2">
         <div className="space-y-5">
           <div className="grid gap-2">
-            <Label htmlFor="firstName" className="text-sm font-semibold">Ism</Label>
+            <Label htmlFor="fullName" className="text-sm font-semibold">To'liq ism</Label>
             <Input
-              id="firstName"
-              placeholder="Ism kiriting"
-              value={formData.firstName}
-              onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-              className="h-10 transition-all focus:ring-primary/20"
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="lastName" className="text-sm font-semibold">Familiya</Label>
-            <Input
-              id="lastName"
-              placeholder="Familiya kiriting"
-              value={formData.lastName}
-              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+              id="fullName"
+              placeholder="To'liq ismni kiriting"
+              value={formData.fullName}
+              onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
               className="h-10 transition-all focus:ring-primary/20"
             />
           </div>

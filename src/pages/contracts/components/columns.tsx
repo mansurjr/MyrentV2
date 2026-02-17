@@ -52,9 +52,10 @@ const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
 
   const handlePay = async () => {
     setMenuOpen(false);
-    await automatePaymentRedirect(contract.id, {
-      months: contract.paymentSnapshot?.debtMonths || 1,
-    });
+    const pendingPeriods = contract.paymentPeriods?.filter(p => p.status === 'PENDING') || [];
+    if (pendingPeriods.length === 0) return;
+    
+    await automatePaymentRedirect(contract.id, pendingPeriods.map(p => p.id));
   };
 
   const handleFinish = async () => {
@@ -78,6 +79,9 @@ const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
       console.error("Error restoring contract:", error);
     }
   };
+  
+  const hasPendingPeriods = contract.paymentPeriods?.some(p => p.status === 'PENDING');
+  const showPayButton = hasPendingPeriods && contract.paymentType === "ONLINE";
 
   return (
     <div className="flex items-center justify-end">
@@ -102,7 +106,7 @@ const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
                 <Edit className="mr-2 h-4 w-4 text-muted-foreground" />
                 {t("common.save")}
               </DropdownMenuItem>
-              {!contract.isPaidCurrentMonth && contract.paymentType === "ONLINE" && (
+              {showPayButton && (
                 <DropdownMenuItem
                   onClick={handlePay}
                   className="cursor-pointer text-blue-600 focus:text-blue-700 focus:bg-blue-50"
@@ -252,20 +256,15 @@ export const columns = (onEdit: (contract: Contract) => void, isArchived: boolea
     header: "To'lov holati",
     cell: ({ row }) => {
       const contract = row.original;
-      const isPaid = contract.isPaidCurrentMonth;
-      const snapshot = contract.paymentSnapshot;
-      if (!isPaid) {
+      const paymentPeriods = contract.paymentPeriods || [];
+      
+      const pendingPeriods = paymentPeriods.filter(p => p.status === 'PENDING');
+      const hasDebt = pendingPeriods.length > 0;
+      
+      if (hasDebt) {
         return (
           <Badge variant="destructive" className="font-semibold shadow-sm">
-            Qarzdorlik
-          </Badge>
-        );
-      }
-      
-      if (snapshot && snapshot.monthsAhead > 0) {
-        return (
-          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 font-semibold shadow-sm">
-            {snapshot.monthsAhead} oy oldindan
+            Qarzdorlik ({pendingPeriods.length} oy)
           </Badge>
         );
       }
@@ -321,7 +320,7 @@ export const columns = (onEdit: (contract: Contract) => void, isArchived: boolea
           <div className="text-xs space-y-1">
             {contract.archivedBy && (
               <p className="text-muted-foreground">
-                <span className="font-semibold text-foreground">Kim:</span> {contract.archivedBy.firstName} {contract.archivedBy.lastName}
+                <span className="font-semibold text-foreground">Kim:</span> {contract.archivedBy.fullName}
               </p>
             )}
             {contract.archivedAt && (

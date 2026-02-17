@@ -32,8 +32,16 @@ export function ManualPayDialog({
   const { t } = useTranslation();
   const { manualPayContract } = useContracts();
   
-  const minMonth = contract.paymentSnapshot?.nextPeriodStart 
-    ? format(new Date(contract.paymentSnapshot.nextPeriodStart), "yyyy-MM")
+  const pendingPeriods = contract.paymentPeriods
+    ?.filter((p) => p.status === "PENDING")
+    .sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.month - b.month;
+    }) || [];
+
+  const nextPeriod = pendingPeriods[0];
+  const minMonth = nextPeriod
+    ? `${nextPeriod.year}-${String(nextPeriod.month).padStart(2, "0")}`
     : format(new Date(), "yyyy-MM");
 
   const [formData, setFormData] = useState<IManualPayDto>({

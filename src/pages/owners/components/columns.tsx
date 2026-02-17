@@ -60,7 +60,7 @@ export const getColumns = (isArchived: boolean = false): ColumnDef<Owner>[] => [
           <div className="text-xs space-y-1">
             {owner.archivedBy && (
               <p className="text-muted-foreground">
-                <span className="font-semibold text-foreground">Kim:</span> {owner.archivedBy.firstName} {owner.archivedBy.lastName}
+                <span className="font-semibold text-foreground">Kim:</span> {owner.archivedBy.fullName}
               </p>
             )}
             {owner.archivedAt && (

@@ -37,7 +37,7 @@ export const useStores = () => {
     });
   };
 
-  const useGetStore = (id: number) =>
+  const useGetStore = (id: string) =>
     useQuery({
       queryKey: ["stores", id],
       queryFn: async () => {
@@ -47,7 +47,7 @@ export const useStores = () => {
       enabled: !!id,
     });
 
-  const checkStoreNumber = async (storeNumber: string, excludeId?: number) => {
+  const checkStoreNumber = async (storeNumber: string, excludeId?: string) => {
     const response = await baseApi.get(`/stores/check-number/${storeNumber}`, {
       params: excludeId ? { excludeId } : {}
     });
@@ -65,7 +65,7 @@ export const useStores = () => {
   });
 
   const updateStore = useMutation({
-    mutationFn: async ({ id, dto }: { id: number; dto: IUpdateStoreDto }) => {
+    mutationFn: async ({ id, dto }: { id: string; dto: IUpdateStoreDto }) => {
       const response = await baseApi.patch<Store>(`/stores/${id}`, dto);
       return response.data;
     },
@@ -75,7 +75,7 @@ export const useStores = () => {
   });
 
   const deleteStore = useMutation({
-    mutationFn: async (id: number) => {
+    mutationFn: async (id: string) => {
       const response = await baseApi.delete(`/stores/${id}`);
       return response.data;
     },

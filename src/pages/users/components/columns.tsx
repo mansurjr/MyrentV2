@@ -135,12 +135,10 @@ export const columns = (onEdit: (user: User) => void): ColumnDef<User>[] => [
     cell: ({ row }) => <span className="font-mono text-muted-foreground">{row.getValue("id")}</span>,
   },
   {
-    accessorKey: "firstName",
+    accessorKey: "fullName",
     header: "F.I.O",
     cell: ({ row }) => {
-      const first = row.original.firstName || "";
-      const last = row.original.lastName || "";
-      const fullName = first || last ? `${first} ${last}`.trim() : "—";
+      const fullName = row.original.fullName || "—";
       return (
         <div className="font-medium">
           {fullName}

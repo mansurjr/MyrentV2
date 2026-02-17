@@ -3,8 +3,7 @@ import baseApi from "../../../api";
 import type { Owner, OwnerListResponse } from "../../../types/api-responses";
 
 export interface ICreator {
-  firstName: string;
-  lastName: string;
+  fullName: string;
 }
 
 export interface IStore {

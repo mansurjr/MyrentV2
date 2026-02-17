@@ -34,7 +34,7 @@ export const useStalls = () => {
       },
     });
 
-  const checkStallNumber = async (stallNumber: string, excludeId?: number) => {
+  const checkStallNumber = async (stallNumber: string, excludeId?: string) => {
     const response = await baseApi.get(`/stalls/check-number/${stallNumber}`, {
       params: { excludeId }
     });
@@ -52,7 +52,7 @@ export const useStalls = () => {
   });
 
   const updateStall = useMutation({
-    mutationFn: async ({ id, dto }: { id: number; dto: IUpdateStallDto }) => {
+    mutationFn: async ({ id, dto }: { id: string; dto: IUpdateStallDto }) => {
       const response = await baseApi.patch<Stall>(`/stalls/${id}`, dto);
       return response.data;
     },
@@ -62,7 +62,7 @@ export const useStalls = () => {
   });
 
   const deleteStall = useMutation({
-    mutationFn: async (id: number) => {
+    mutationFn: async (id: string) => {
       const response = await baseApi.delete(`/stalls/${id}`);
       return response.data;
     },

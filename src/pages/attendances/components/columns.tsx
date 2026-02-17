@@ -55,12 +55,12 @@ export const columns = (
     cell: ({ row }) => (
       <div className="flex flex-col">
         <span className="font-bold text-lg">{row.original.stallNumber}</span>
-        <span className="text-xs text-muted-foreground">{row.original.Section?.name}</span>
+        <span className="text-xs text-muted-foreground">{row.original.section?.name}</span>
       </div>
     ),
   },
   {
-    accessorKey: "SaleType.name",
+    accessorKey: "saleType.name",
     header: t("nav.sale_types"),
   },
   {

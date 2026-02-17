@@ -128,8 +128,8 @@ const ActionCell = ({ stall, onEdit }: ActionCellProps) => {
 export const columns = (onEdit: (stall: Stall) => void): ColumnDef<Stall>[] => [
   {
     accessorKey: "id",
-    header: "ID",
-    cell: ({ row }) => <span className="font-mono text-muted-foreground">{row.getValue("id")}</span>,
+    header: "№",
+    cell: ({ row }) => <span className="font-mono text-muted-foreground">{row.index + 1}</span>,
   },
   {
     accessorKey: "stallNumber",
@@ -137,20 +137,20 @@ export const columns = (onEdit: (stall: Stall) => void): ColumnDef<Stall>[] => [
     cell: ({ row }) => <div className="font-medium">{row.getValue("stallNumber")}</div>,
   },
   {
-    accessorKey: "Section.name",
+    accessorKey: "section.name",
     header: "Bo'lim",
     cell: ({ row }) => (
       <div className="font-medium">
-        {row.original.Section?.name || "—"}
+        {row.original.section?.name || "—"}
       </div>
     ),
   },
   {
-    accessorKey: "SaleType.name",
+    accessorKey: "saleType.name",
     header: "Sotuv turi",
     cell: ({ row }) => (
       <div className="font-medium">
-        {row.original.SaleType?.name || "—"}
+        {row.original.saleType?.name || "—"}
       </div>
     ),
   },
@@ -163,7 +163,7 @@ export const columns = (onEdit: (stall: Stall) => void): ColumnDef<Stall>[] => [
     accessorKey: "dailyFee",
     header: "Kunlik to'lov",
     cell: ({ row }) => {
-      const saleTypeTax = row.original.SaleType?.tax || 0;
+      const saleTypeTax = row.original.saleType?.tax || 0;
       const area = row.original.area || 0;
       const total = area * saleTypeTax;
       return (

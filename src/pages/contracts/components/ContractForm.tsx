@@ -58,7 +58,7 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
     paymentType: 'ONLINE',
     shopMonthlyFee: 0,
     ownerId: 0,
-    storeId: 0,
+    storeId: "",
   });
 
   useEffect(() => {
@@ -170,8 +170,8 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
               {t("contracts.store")}
             </Label>
             <Select
-              value={formData.storeId ? String(formData.storeId) : undefined}
-              onValueChange={(val) => setFormData({ ...formData, storeId: Number(val) })}
+              value={formData.storeId ? formData.storeId : undefined}
+              onValueChange={(val) => setFormData({ ...formData, storeId: val })}
               disabled={!!contract}
             >
               <SelectTrigger className="h-10 w-full">

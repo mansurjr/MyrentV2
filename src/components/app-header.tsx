@@ -36,9 +36,9 @@ export function AppHeader({ onLogout }: AppHeaderProps) {
   const { user } = useAuth();
   const matches = useMatches();
 
-  const getInitials = (firstName?: string, lastName?: string) => {
-    if (!firstName && !lastName) return "JD";
-    return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase() || "JD";
+  const getInitials = (fullName?: string | null) => {
+    if (!fullName) return "JD";
+    return fullName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
   const breadcrumbs = React.useMemo(() => 
@@ -118,8 +118,8 @@ export function AppHeader({ onLogout }: AppHeaderProps) {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full">
               <Avatar className="h-9 w-9">
-                <AvatarImage src={user?.avatar} alt={user?.firstName} />
-                <AvatarFallback>{getInitials(user?.firstName, user?.lastName)}</AvatarFallback>
+                <AvatarImage src={user?.avatar} alt={user?.fullName || ""} />
+                <AvatarFallback>{getInitials(user?.fullName)}</AvatarFallback>
                 <AvatarBadge className="bg-green-600 dark:bg-green-800 ring-2 ring-background font-medium" />
               </Avatar>
             </Button>

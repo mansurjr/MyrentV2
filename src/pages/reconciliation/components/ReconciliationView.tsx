@@ -37,12 +37,7 @@ import { cn } from "@/lib/utils";
 import {
   format,
   differenceInMonths,
-  addMonths,
-  startOfMonth,
   parseISO,
-  isBefore,
-  isAfter,
-  isSameMonth,
   getYear,
 } from "date-fns";
 import { uz } from "date-fns/locale";
@@ -74,7 +69,7 @@ export function ReconciliationView() {
 
   const [filterType, setFilterType] = useState<FilterType>("store");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [selectedOwnerId, setSelectedOwnerId] = useState<number | null>(null);
   const [selectedContractId, setSelectedContractId] = useState<number | null>(
     null,
@@ -125,56 +120,52 @@ export function ReconciliationView() {
   );
 
   const paymentHistory = useMemo(() => {
-    if (!selectedContract) return [];
+    if (!selectedContract || !selectedContract.paymentPeriods) return [];
 
-    const issueDate = selectedContract.issueDate
-      ? parseISO(selectedContract.issueDate)
-      : new Date();
-    const expiryDate = selectedContract.expiryDate
-      ? parseISO(selectedContract.expiryDate)
-      : null;
     const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonthIndex = now.getMonth() + 1; // 1-12
 
-    const calculationEndDate =
-      expiryDate && isBefore(expiryDate, now)
-        ? now
-        : expiryDate || addMonths(now, 12);
-
-    const months: any[] = [];
-    let currentMonth = startOfMonth(issueDate);
-    const endCalculationMonth = startOfMonth(calculationEndDate);
-
-    while (!isAfter(currentMonth, endCalculationMonth)) {
-      const getMonthKey = (d: Date) => format(d, "yyyy-MM");
-      const currentMonthKey = getMonthKey(currentMonth);
-      const paidThroughKey = selectedContract.paymentSnapshot?.paidThrough 
-        ? getMonthKey(parseISO(selectedContract.paymentSnapshot.paidThrough))
-        : "";
-
-      const isPaid = paidThroughKey ? currentMonthKey < paidThroughKey : false;
-      const isPast = isBefore(currentMonth, startOfMonth(now));
-      const isCurrent = isSameMonth(currentMonth, now);
-
-      months.push({
-        date: currentMonth,
-        label: format(currentMonth, "MMMM yyyy", { locale: uz }),
-        isPaid,
-        isPast,
-        isCurrent,
-        isFuture: isAfter(currentMonth, startOfMonth(now)),
+    // Filter and sort payment periods
+    const periods = selectedContract.paymentPeriods
+      .filter((p) => {
+        // Show only current and past months
+        if (p.year > currentYear) return false;
+        if (p.year === currentYear && p.month > currentMonthIndex) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        if (a.year !== b.year) return a.year - b.year; // Ascending year
+        return a.month - b.month; // Ascending month
       });
 
-      currentMonth = addMonths(currentMonth, 1);
-    }
+    return periods.map((period) => {
+      const periodDate = new Date(period.year, period.month - 1);
+      const isPaid = period.status === "PAID";
+      
+      // Determine if it's the current month (for highlighting)
+      const isCurrent =
+        period.year === currentYear && period.month === currentMonthIndex;
 
-    return months;
+      return {
+        id: period.id,
+        date: periodDate,
+        label: format(periodDate, "MMMM yyyy", { locale: uz }),
+        isPaid,
+        isPast: !isPaid, 
+        isCurrent,
+        isFuture: false, // We filtered future months out
+        status: period.status,
+        amount: period.amount
+      };
+    });
   }, [selectedContract]);
 
   const availableYears = useMemo(() => {
     if (paymentHistory.length === 0) return [];
     const years = new Set<number>();
     paymentHistory.forEach((m) => years.add(getYear(m.date)));
-    return Array.from(years).sort((a, b) => b - a);
+    return Array.from(years).sort((a, b) => a - b);
   }, [paymentHistory]);
 
   const filteredPaymentHistory = useMemo(() => {
@@ -185,20 +176,30 @@ export function ReconciliationView() {
   }, [paymentHistory, selectedYear]);
 
   const stats = useMemo(() => {
-    if (!selectedContract) return null;
+    if (!selectedContract || !selectedContract.paymentPeriods) return null;
 
     const now = new Date();
     const expiryDate = selectedContract.expiryDate
       ? parseISO(selectedContract.expiryDate)
       : null;
 
+    // paymentHistory is already filtered to exclude future months
+    // and mapped to include isPaid/isPast flags
+    const totalPaidMonths = paymentHistory.filter((m) => m.isPaid).length;
+    const totalUnpaidPastMonths = paymentHistory.filter((m) => !m.isPaid).length;
+    
+    // Calculate total debt amount from unpaid periods
+    const totalDebtAmount = paymentHistory
+      .filter((m) => !m.isPaid)
+      .reduce((sum, m) => sum + Number(m.amount || selectedContract.shopMonthlyFee || 0), 0);
+
     return {
       monthsRemaining: expiryDate
         ? Math.max(0, differenceInMonths(expiryDate, now))
         : null,
-      totalPaidMonths: paymentHistory.filter((m) => m.isPaid).length,
-      totalUnpaidPastMonths: paymentHistory.filter((m) => m.isPast && !m.isPaid)
-        .length,
+      totalPaidMonths,
+      totalUnpaidPastMonths,
+      totalDebtAmount
     };
   }, [selectedContract, paymentHistory]);
 
@@ -309,7 +310,7 @@ export function ReconciliationView() {
                           setSelectedContractId(null);
                         }}
                         className={cn(
-                          "w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all flex items-center justify-between group",
+                          "w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all flex items-center justify-between group border",
                           selectedStoreId === store.id
                             ? "bg-primary text-primary-foreground shadow-md"
                             : "hover:bg-muted",
@@ -459,7 +460,7 @@ export function ReconciliationView() {
                             setSelectedYear("all");
                           }}
                           className={cn(
-                            "text-left p-4 rounded-xl border-2 transition-all flex items-start gap-4 group/item",
+                            "text-left p-4 rounded-xl  transition-all flex items-start gap-4 group/item border",
                             selectedContractId === contract.id
                               ? "border-primary bg-primary/5 shadow-sm"
                               : "border-border/50 hover:border-primary/50 hover:bg-muted/50",
@@ -479,12 +480,15 @@ export function ReconciliationView() {
                             <h4 className="font-bold flex items-center gap-2">
                               № {contract.certificateNumber || t("common.unknown")}
                               <Badge
-                                variant={
-                                  contract.isPaidCurrentMonth
-                                    ? "outline"
-                                    : "destructive"
-                                }
-                                className="text-[10px] h-5 px-1.5 uppercase">
+                                  variant={
+                                    contract.isPaidCurrentMonth
+                                      ? "default"
+                                      : "destructive"
+                                  }
+                                  className={cn(
+                                    "text-[10px] h-5 px-1.5 uppercase",
+                                    contract.isPaidCurrentMonth && "bg-emerald-500 hover:bg-emerald-600 border-transparent"
+                                  )}>
                                 {contract.isPaidCurrentMonth
                                   ? t("common.paid")
                                   : t("common.unpaid")}
@@ -575,7 +579,7 @@ export function ReconciliationView() {
                               {t("reconciliation.paid_months")}
                             </Label>
                             <div className="text-lg font-bold text-emerald-600">
-                              {stats?.totalPaidMonths}
+                              {stats!.totalPaidMonths}
                             </div>
                           </div>
                           <div className="space-y-1">
@@ -583,23 +587,29 @@ export function ReconciliationView() {
                               {t("reconciliation.unpaid_months")}
                             </Label>
                             <div className="text-lg font-bold text-red-600">
-                              {stats?.totalUnpaidPastMonths}
+                              {stats!.totalUnpaidPastMonths}
                             </div>
                           </div>
                         </div>
                         <div className="space-y-3 pt-2">
-                          {stats?.totalUnpaidPastMonths &&
-                            stats.totalUnpaidPastMonths > 0 ? (
+                          {stats!.totalUnpaidPastMonths &&
+                            stats!.totalUnpaidPastMonths > 0 ? (
                             <Button
-                              onClick={async () => {
+                                onClick={async () => {
                                 if (!selectedContract) return;
                                 setIsRedirecting(true);
                                 try {
-                                  const firstUnpaidMonth = paymentHistory.find(m => !m.isPaid && m.isPast)?.date;
-                                  await automatePaymentRedirect(selectedContract.id, {
-                                    months: selectedContract.paymentSnapshot?.debtMonths || stats?.totalUnpaidPastMonths || 0,
-                                    startMonth: firstUnpaidMonth ? format(firstUnpaidMonth, "yyyy-MM") : undefined
-                                  });
+                                  const pendingPeriods = selectedContract.paymentPeriods
+                                    ?.filter(p => p.status === 'PENDING')
+                                    ?.sort((a, b) => { // Sort strictly ascending to pay oldest first
+                                       if (a.year !== b.year) return a.year - b.year;
+                                       return a.month - b.month;
+                                    })
+                                    ?.map(p => p.id) || [];
+                                    
+                                  if (pendingPeriods.length > 0) {
+                                    await automatePaymentRedirect(selectedContract.id, pendingPeriods);
+                                  }
                                 } finally {
                                   setIsRedirecting(false);
                                 }
@@ -616,16 +626,12 @@ export function ReconciliationView() {
                             </Button>
                           ) : null}
 
-                          {stats?.totalUnpaidPastMonths &&
-                            stats.totalUnpaidPastMonths > 0 && (
-                              <div className="flex items-center gap-2 justify-center text-[10px] font-bold text-red-600 uppercase">
-                                <AlertCircle className="h-3 w-3" />
-                                {new Intl.NumberFormat("uz-UZ").format(
-                                  (selectedContract.paymentSnapshot?.debtAmount || (stats?.totalUnpaidPastMonths || 0) * Number(selectedContract.shopMonthlyFee)),
-                                )}{" "}
-                                UZS
-                              </div>
-                            )}
+                          {stats!.totalDebtAmount > 0 && (
+                            <div className="flex items-center gap-2 justify-center text-[10px] font-bold text-red-600 uppercase">
+                              <AlertCircle className="h-3 w-3" />
+                              {new Intl.NumberFormat("uz-UZ").format(stats!.totalDebtAmount)} UZS
+                            </div>
+                          )}
                         </div>
                         {stats?.monthsRemaining !== null && (
                           <>
@@ -747,10 +753,7 @@ export function ReconciliationView() {
                                             if (!selectedContract) return;
                                             setIsRedirecting(true);
                                             try {
-                                              await automatePaymentRedirect(selectedContract.id, {
-                                                months: 1,
-                                                startMonth: format(month.date, "yyyy-MM")
-                                              });
+                                              await automatePaymentRedirect(selectedContract.id, [month.id]);
                                             } finally {
                                               setIsRedirecting(false);
                                             }
@@ -782,7 +785,7 @@ export function ReconciliationView() {
                                     "border-emerald-200 bg-emerald-50 text-emerald-700",
                                 )}>
                                 {month.isPaid
-                                  ? t("common.done")
+                                  ? t("common.paid")
                                   : month.isPast
                                     ? t("common.debt")
                                     : t("common.waiting")}

@@ -51,8 +51,7 @@ export interface ListResponse<T> {
 export interface User {
   id: number;
   email: string;
-  firstName: string | null;
-  lastName: string | null;
+  fullName: string | null;
   role: Roles ;
   isActive: boolean;
   createdAt: string;
@@ -77,7 +76,7 @@ export interface Owner {
 }
 
 export interface Store {
-  id: number;
+  id: string;
   storeNumber: string;
   area: number;
   click_payment_url: string | null;
@@ -90,7 +89,7 @@ export interface Store {
 }
 
 export interface Stall {
-  id: number;
+  id: string;
   stallNumber: string | null;
   area: number;
   saleTypeId: number | null;
@@ -99,8 +98,8 @@ export interface Stall {
   payme_payment_url: string | null;
   description: string | null;
   dailyFee: string | number;
-  SaleType?: SaleType;
-  Section?: Section;
+  saleType?: SaleType;
+  section?: Section;
   reserved: boolean;
   isOccupied?: boolean;
   attendances?: Attendance[];
@@ -115,6 +114,18 @@ export interface PaymentSnapshot {
   hasCurrentPeriodPaid: boolean;
 }
 
+export interface ContractPaymentPeriod {
+  id: string;
+  contractId: number;
+  year: number;
+  month: number;
+  status: ContractPaymentStatus;
+  amount: string | number;
+  transactionId: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Contract {
   id: number;
   certificateNumber: string | null;
@@ -124,7 +135,7 @@ export interface Contract {
   paymentType: ContractPaymentType;
   shopMonthlyFee: string | number | null;
   ownerId: number;
-  storeId: number;
+  storeId: string;
   isPaidCurrentMonth: boolean;
   createdById: number;
   archivedById?: number | null;
@@ -136,13 +147,14 @@ export interface Contract {
   createdBy?: User;
   archivedBy?: Partial<User>;
   transactions?: Transaction[];
+  paymentPeriods?: ContractPaymentPeriod[];
   paymentSnapshot?: PaymentSnapshot;
 }
 
 export interface Attendance {
   id: number;
   date: string;
-  stallId: number;
+  stallId: string;
   status: AttendancePayment;
   amount: string | number | null;
   transactionId: number | null;
