@@ -17,7 +17,7 @@ export function SaleTypeForm({ editData, onSuccess, onCancel }: SaleTypeFormProp
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    tax: 0,
+    tax: "" as string | number,
   });
 
   useEffect(() => {
@@ -28,19 +28,23 @@ export function SaleTypeForm({ editData, onSuccess, onCancel }: SaleTypeFormProp
         tax: editData.tax,
       });
     } else {
-      setFormData({ name: "", description: "", tax: 0 });
+      setFormData({ name: "", description: "", tax: "" });
     }
   }, [editData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const payload = {
+        ...formData,
+        tax: Number(formData.tax),
+      };
       if (editData) {
-        await updateSaleType.mutateAsync({ id: editData.id, dto: formData });
+        await updateSaleType.mutateAsync({ id: editData.id, dto: payload });
       } else {
-        await createSaleType.mutateAsync(formData);
+        await createSaleType.mutateAsync(payload);
       }
-      setFormData({ name: "", description: "", tax: 0 });
+      setFormData({ name: "", description: "", tax: "" });
       onSuccess();
     } catch (error) {
       console.error("Error saving sale type:", error);
@@ -72,7 +76,7 @@ export function SaleTypeForm({ editData, onSuccess, onCancel }: SaleTypeFormProp
               type="number"
               placeholder="Masalan: 15000"
               value={formData.tax}
-              onChange={(e) => setFormData({ ...formData, tax: Number(e.target.value) })}
+              onChange={(e) => setFormData({ ...formData, tax: e.target.value })}
               className="h-10 transition-all focus:ring-primary/20"
               required
             />

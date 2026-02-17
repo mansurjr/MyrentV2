@@ -44,9 +44,9 @@ export function StallForm({ editData, onSuccess, onCancel }: StallFormProps) {
       ? (saleTypesData as any).data
       : [];
 
-  const [formData, setFormData] = useState<ICreateStallDto>({
+  const [formData, setFormData] = useState<Omit<ICreateStallDto, "area"> & { area: string | number }>({
     stallNumber: "",
-    area: 0,
+    area: "",
     saleTypeId: undefined,
     sectionId: undefined,
     description: "",
@@ -79,7 +79,7 @@ export function StallForm({ editData, onSuccess, onCancel }: StallFormProps) {
     } else {
       setFormData({
         stallNumber: "",
-        area: 0,
+        area: "",
         saleTypeId: undefined,
         sectionId: undefined,
         description: "",
@@ -120,7 +120,7 @@ export function StallForm({ editData, onSuccess, onCancel }: StallFormProps) {
         (st) => st.id === formData.saleTypeId,
       );
       if (selectedSaleType) {
-        setTotalSum(formData.area * selectedSaleType.tax);
+        setTotalSum(Number(formData.area) * selectedSaleType.tax);
       } else {
         setTotalSum(0);
       }
@@ -133,9 +133,15 @@ export function StallForm({ editData, onSuccess, onCancel }: StallFormProps) {
     e.preventDefault();
     try {
       if (editData) {
-        await updateStall.mutateAsync({ id: editData.id, dto: formData });
+        await updateStall.mutateAsync({
+          id: editData.id,
+          dto: { ...formData, area: Number(formData.area) } as any,
+        });
       } else {
-        await createStall.mutateAsync(formData);
+        await createStall.mutateAsync({
+          ...formData,
+          area: Number(formData.area),
+        } as any);
       }
       onSuccess();
     } catch (error) {
@@ -243,11 +249,10 @@ export function StallForm({ editData, onSuccess, onCancel }: StallFormProps) {
             <Input
               id="area"
               type="number"
-              
               placeholder="0.00"
-              value={formData.area || ""}
+              value={formData.area}
               onChange={(e) =>
-                setFormData({ ...formData, area: Number(e.target.value) })
+                setFormData({ ...formData, area: e.target.value })
               }
               className="h-10 transition-all focus:ring-primary/20"
               required

@@ -31,9 +31,9 @@ export function StoreForm({ editData, onSuccess, onCancel }: StoreFormProps) {
   const sections = Array.isArray(sectionsRaw) ? sectionsRaw : 
                   (Array.isArray((sectionsRaw as any)?.data) ? (sectionsRaw as any).data : []);
 
-  const [formData, setFormData] = useState<ICreateStoreDto>({
+  const [formData, setFormData] = useState<Omit<ICreateStoreDto, "area"> & { area: string | number }>({
     storeNumber: "",
-    area: 0,
+    area: "",
     sectionId: undefined,
     description: "",
   });
@@ -53,7 +53,7 @@ export function StoreForm({ editData, onSuccess, onCancel }: StoreFormProps) {
     } else {
       setFormData({
         storeNumber: "",
-        area: 0,
+        area: "",
         sectionId: undefined,
         description: "",
       });
@@ -90,9 +90,15 @@ export function StoreForm({ editData, onSuccess, onCancel }: StoreFormProps) {
     e.preventDefault();
     try {
       if (editData) {
-        await updateStore.mutateAsync({ id: editData.id, dto: formData });
+        await updateStore.mutateAsync({
+          id: editData.id,
+          dto: { ...formData, area: Number(formData.area) } as any,
+        });
       } else {
-        await createStore.mutateAsync(formData);
+        await createStore.mutateAsync({
+          ...formData,
+          area: Number(formData.area),
+        } as any);
       }
       onSuccess();
     } catch (error) {
@@ -159,8 +165,8 @@ export function StoreForm({ editData, onSuccess, onCancel }: StoreFormProps) {
               type="number"
               step="0.01"
               placeholder="0.00"
-              value={formData.area || ""}
-              onChange={(e) => setFormData({ ...formData, area: Number(e.target.value) })}
+              value={formData.area}
+              onChange={(e) => setFormData({ ...formData, area: e.target.value })}
               className="h-10 transition-all focus:ring-primary/20"
               required
             />

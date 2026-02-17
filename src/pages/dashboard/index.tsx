@@ -25,6 +25,7 @@ import { uz } from "date-fns/locale";
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { useTransactions } from "../transactions/hooks/useTransactions";
+import { useStatistics } from "../statistics/hooks/useStatistics";
 
 const StatCard = ({ title, value, description, icon: Icon, color }: any) => (
   <Card className="relative overflow-hidden border-border/50 bg-card border-none shadow-sm group hover:shadow-md transition-all duration-300">
@@ -65,43 +66,49 @@ const DashboardPage = () => {
     [],
   );
 
-  const stats = [
-    {
-      title: t("dashboard.total_stores"),
-      value: "306",
-      description: t("dashboard.stores_count_desc"),
-      icon: Store,
-      color: "bg-blue-600",
-    },
-    {
-      title: t("dashboard.total_stalls"),
-      value: "47",
-      description: t("dashboard.stalls_count_desc"),
-      icon: LayoutGrid,
-      color: "bg-orange-500",
-    },
-    {
-      title: t("dashboard.total_owners"),
-      value: "247",
-      description: t("dashboard.owners_count_desc"),
-      icon: Users,
-      color: "bg-indigo-600",
-    },
-    {
-      title: t("dashboard.active_contracts"),
-      value: "279",
-      description: t("dashboard.active_contracts_desc", { month: currentMonth }),
-      icon: FileText,
-      color: "bg-emerald-600",
-    },
-    {
-      title: t("dashboard.archived"),
-      value: "21",
-      description: t("dashboard.archived_desc", { month: currentMonth }),
-      icon: Archive,
-      color: "bg-rose-500",
-    },
-  ];
+  const { getTotals } = useStatistics();
+  const totalsQuery = getTotals({});
+
+  const stats = useMemo(() => {
+    const data = totalsQuery.data || {};
+    return [
+      {
+        title: t("dashboard.total_stores"),
+        value: String(data.stores || 0),
+        description: t("dashboard.stores_count_desc"),
+        icon: Store,
+        color: "bg-blue-600",
+      },
+      {
+        title: t("dashboard.total_stalls"),
+        value: String(data.stalls || 0),
+        description: t("dashboard.stalls_count_desc"),
+        icon: LayoutGrid,
+        color: "bg-orange-500",
+      },
+      {
+        title: t("dashboard.total_owners"),
+        value: String(data.owners || 0),
+        description: t("dashboard.owners_count_desc"),
+        icon: Users,
+        color: "bg-indigo-600",
+      },
+      {
+        title: t("dashboard.active_contracts"),
+        value: String(data.contracts || 0),
+        description: t("dashboard.active_contracts_desc", { month: currentMonth }),
+        icon: FileText,
+        color: "bg-emerald-600",
+      },
+      {
+        title: t("dashboard.archived"),
+        value: String(data.archived || 0),
+        description: t("dashboard.archived_desc", { month: currentMonth }),
+        icon: Archive,
+        color: "bg-rose-500",
+      },
+    ];
+  }, [totalsQuery.data, t, currentMonth]);
 
   return (
     <main className="p-6 space-y-8 w-full mx-auto">

@@ -83,7 +83,7 @@ export interface Store {
   payme_payment_url: string | null;
   description: string | null;
   sectionId: number | null;
-  Section?: Section | undefined;
+  section?: Section | undefined;
   isOccupied?: boolean;
   contracts?: Contract[];
 }

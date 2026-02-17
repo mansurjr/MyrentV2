@@ -127,9 +127,19 @@ export default function MapPage() {
   const handleContractPay = async () => {
     if (!itemData?.contracts?.[0]) return;
     const contract = itemData.contracts[0];
-    await automatePaymentRedirect(contract.id, {
-      months: contract.paymentSnapshot?.debtMonths || 1,
-    });
+    
+    // Find pending periods to pay
+    const pendingPeriodIds = contract.paymentPeriods
+      ?.filter((p: any) => p.status === 'PENDING')
+      ?.sort((a: any, b: any) => {
+        if (a.year !== b.year) return a.year - b.year;
+        return a.month - b.month;
+      })
+      ?.map((p: any) => p.id) || [];
+
+    if (pendingPeriodIds.length > 0) {
+      await automatePaymentRedirect(contract.id, pendingPeriodIds);
+    }
   };
 
   const isMutating = createAttendance.isPending;
@@ -182,7 +192,7 @@ export default function MapPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">{t("common.all")} {t("nav.sections").toLowerCase()}</SelectItem>
-                    {sectionsData?.map((section) => (
+                    {(Array.isArray(sectionsData) ? sectionsData : (sectionsData as any)?.data)?.map((section: any) => (
                       <SelectItem key={section.id} value={String(section.id)}>
                         {section.name}
                       </SelectItem>

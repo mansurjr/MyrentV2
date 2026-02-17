@@ -312,8 +312,8 @@ export function ReconciliationView() {
                         className={cn(
                           "w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all flex items-center justify-between group border",
                           selectedStoreId === store.id
-                            ? "bg-primary text-primary-foreground shadow-md"
-                            : "hover:bg-muted",
+                            ? "bg-primary text-primary-foreground shadow-md border-primary"
+                            : "hover:bg-muted border-border/50",
                         )}>
                         <div className="flex flex-col">
                           <span className="font-semibold">
@@ -327,7 +327,7 @@ export function ReconciliationView() {
                                 : "text-muted-foreground",
                             )}>
                             {store.area} {t("common.area_unit")} •{" "}
-                            {store.Section?.name || t("reconciliation.no_department")}
+                            {store.section?.name || t("reconciliation.no_department")}
                           </span>
                         </div>
                         <ChevronRight
@@ -352,10 +352,10 @@ export function ReconciliationView() {
                         setSelectedContractId(null);
                       }}
                       className={cn(
-                        "w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all flex items-center justify-between group",
+                        "w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all flex items-center justify-between group border",
                         selectedOwnerId === owner.id
-                          ? "bg-primary text-primary-foreground shadow-md"
-                          : "hover:bg-muted",
+                          ? "bg-primary text-primary-foreground shadow-md border-primary"
+                          : "hover:bg-muted border-border/50",
                       )}>
                       <div className="flex flex-col">
                         <span className="font-semibold">{owner.fullName}</span>

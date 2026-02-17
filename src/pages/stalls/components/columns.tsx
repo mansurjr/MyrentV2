@@ -1,6 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import type { Stall } from "../../../types/api-responses";
-import { MoreHorizontal, Edit, Trash, Loader2, Eye, QrCode } from "lucide-react";
+import { MoreHorizontal, Edit, Trash, Loader2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -194,25 +194,6 @@ export const columns = (onEdit: (stall: Stall) => void): ColumnDef<Stall>[] => [
           )}
         </div>
       );
-    },
-  },
-  {
-    id: "receipt",
-    header: "Chek",
-    cell: ({ row }) => {
-      const stall = row.original;
-      const latestPaidAttendance = stall.attendances?.find(a => a.status === "PAID" && (a as any).transaction?.fiscalQrCode);
-      
-      if (latestPaidAttendance) {
-        return (
-          <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0" title="Oxirgi to'lov cheki">
-            <a href={(latestPaidAttendance as any).transaction.fiscalQrCode} target="_blank" rel="noopener noreferrer">
-              <QrCode className="h-4 w-4 text-emerald-600" />
-            </a>
-          </Button>
-        );
-      }
-      return "—";
     },
   },
   {

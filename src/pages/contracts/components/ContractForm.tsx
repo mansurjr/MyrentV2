@@ -51,12 +51,12 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
     limit: 1000 
   });
 
-  const [formData, setFormData] = useState<ICreateContractDto>({
+  const [formData, setFormData] = useState<Omit<ICreateContractDto, "shopMonthlyFee"> & { shopMonthlyFee: string | number }>({
     certificateNumber: "",
     issueDate: new Date().toISOString().split('T')[0],
     expiryDate: "",
     paymentType: 'ONLINE',
-    shopMonthlyFee: 0,
+    shopMonthlyFee: "",
     ownerId: 0,
     storeId: "",
   });
@@ -81,10 +81,13 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
       if (contract) {
         await updateContract.mutateAsync({ 
           id: contract.id, 
-          dto: formData 
+          dto: { ...formData, shopMonthlyFee: Number(formData.shopMonthlyFee) } as any 
         });
       } else {
-        await createContract.mutateAsync(formData);
+        await createContract.mutateAsync({
+          ...formData,
+          shopMonthlyFee: Number(formData.shopMonthlyFee)
+        } as any);
       }
       onSuccess();
     } catch (error) {
@@ -251,8 +254,8 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
                 id="shopMonthlyFee"
                 type="number"
                 placeholder="0.00"
-                value={formData.shopMonthlyFee || ""}
-                onChange={(e) => setFormData({ ...formData, shopMonthlyFee: Number(e.target.value) })}
+                value={formData.shopMonthlyFee}
+                onChange={(e) => setFormData({ ...formData, shopMonthlyFee: e.target.value })}
                 className="h-10 border-border/50 focus:ring-primary/20 font-bold"
                 required
               />
