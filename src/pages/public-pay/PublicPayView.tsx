@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { getTashkentTodayISO, formatTashkentDate } from "@/lib/time";
+import { getTashkentTodayISO, formatTashkentDate, isDateWithinCurrentWeek } from "@/lib/time";
 import { searchPublicContracts, getPublicStall } from "@/api/publicPay";
 
 export default function PublicPayView() {
@@ -216,9 +216,24 @@ export default function PublicPayView() {
             </form>
 
             {error && (
-              <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 flex items-center gap-3 text-red-600 dark:text-red-400">
-                <Info className="h-5 w-5 shrink-0" />
-                <p className="text-sm font-semibold">{error}</p>
+              <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 space-y-4 animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-center gap-3 text-red-600 dark:text-red-400">
+                  <Info className="h-5 w-5 shrink-0" />
+                  <p className="text-sm font-semibold">{error}</p>
+                </div>
+                
+                {mode === "stall" && stallNumber && isDateWithinCurrentWeek(date) && (
+                  <Button 
+                    onClick={() => {
+                      const params = { mode: 'stall', stall: stallNumber, date, create: 'true' };
+                      const queryString = new URLSearchParams(params as any).toString();
+                      navigate(`/pay/detail?${queryString}`);
+                    }}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-12 rounded-xl"
+                  >
+                    Yangi davomat yaratish
+                  </Button>
+                )}
               </div>
             )}
 

@@ -18,6 +18,7 @@ export default function PublicPayDetailView() {
   const mode = searchParams.get("mode") || "contract";
   const stallNumber = searchParams.get("stall");
   const date = searchParams.get("date");
+  const create = searchParams.get("create") === 'true';
 
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -28,20 +29,32 @@ export default function PublicPayDetailView() {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+      setError("");
       try {
         if (mode === "contract" && contractId) {
           const res = await getPublicContractDetail(Number(contractId));
           setData(res);
-          // Try both pendingPeriods and paymentPeriods (fallback)
           const periods = res.pendingPeriods || res.paymentPeriods || [];
           const unpaid = periods.filter((p: any) => p.status === 'PENDING' || !p.status || p.status === 'UNPAID');
-          
           if (unpaid.length > 0) {
-            setSelectedPeriods(unpaid.map((p: any) => p.id || p.id));
+            setSelectedPeriods(unpaid.map((p: any) => p.id));
           }
         } else if (mode === "stall" && stallNumber) {
-          const res = await getPublicStall(stallNumber, { date: date || undefined });
-          setData(Array.isArray(res) ? res[0] : res);
+          try {
+            const res = await getPublicStall(stallNumber, { date: date || undefined });
+            setData(Array.isArray(res) ? res[0] : res);
+          } catch (err) {
+            if (create) {
+              // Create mode: Search failed, but we want to initialize a mock record for payment creation
+              setData({
+                stall: { stallNumber: stallNumber },
+                payment: { date: date, status: 'UNPAID' },
+                isNew: true
+              });
+            } else {
+              throw err;
+            }
+          }
         } else {
           setError("Ma'lumotlar yetarli emas");
         }
@@ -52,7 +65,7 @@ export default function PublicPayDetailView() {
       }
     };
     fetchData();
-  }, [contractId, mode, stallNumber, date]);
+  }, [contractId, mode, stallNumber, date, create]);
 
   const togglePeriod = (id: string) => {
     setSelectedPeriods(prev => 
@@ -70,15 +83,14 @@ export default function PublicPayDetailView() {
     try {
       let url = "";
       if (mode === "contract" && data?.id) {
-        // If user wants specific periods
         const res = await baseApi.post<{ url: string }>(`/public/contracts/${data.id}/payment-url`, {
           periodIds: selectedPeriods,
           method
         });
         url = res.data.url;
-      } else if (mode === "stall" && data?.stall?.stallNumber) {
-        const res = await baseApi.post<{ url: string }>(`/public/stalls/${data.stall.stallNumber}/payment-url`, {
-          date: data.payment?.date || date,
+      } else if (mode === "stall" && (data?.stall?.stallNumber || stallNumber)) {
+        const res = await baseApi.post<{ url: string }>(`/public/stalls/${data?.stall?.stallNumber || stallNumber}/payment-url`, {
+          date: data?.payment?.date || date,
           method
         });
         url = res.data.url;
@@ -121,7 +133,6 @@ export default function PublicPayDetailView() {
   }
 
   const isContract = mode === "contract";
-  // Fallback to various possible period array names
   const allPeriods = isContract 
     ? (data.pendingPeriods || data.paymentPeriods || data.debtPeriods || []) 
     : [];
@@ -130,7 +141,6 @@ export default function PublicPayDetailView() {
     p.status === 'PENDING' || p.status === 'UNPAID' || !p.status || p.isPaid === false
   );
   
-  // Use debtAmount from snapshot if available as fallback for total
   const amountToPay = isContract 
     ? (pendingPeriods.length > 0 
         ? pendingPeriods.filter((p: any) => selectedPeriods.includes(p.id)).reduce((sum: number, p: any) => sum + Number(p.amount), 0)
@@ -160,11 +170,11 @@ export default function PublicPayDetailView() {
                 {isContract ? <StoreIcon className="h-6 w-6" /> : <Tag className="h-6 w-6" />}
               </div>
               <CardTitle className="text-2xl font-extrabold tracking-tight">
-                {isContract ? (data.store?.storeNumber || "Do'kon") : `Rasta: ${data.stall?.stallNumber}`}
+                {isContract ? (data.store?.storeNumber || "Do'kon") : `Rasta: ${data.stall?.stallNumber || stallNumber}`}
               </CardTitle>
             </div>
             <CardDescription className="font-semibold text-slate-600 dark:text-slate-400">
-              {isContract ? data.owner?.fullName : `Sana: ${formatTashkentDate(data.payment?.date || date)}`}
+              {isContract ? data.owner?.fullName : `Sana: ${formatTashkentDate(data.payment?.date || date || "")}`}
             </CardDescription>
           </CardHeader>
 
@@ -179,7 +189,7 @@ export default function PublicPayDetailView() {
                   </Badge>
                 ) : (
                   <Badge variant="destructive" className="px-4 py-1.5 text-xs font-black uppercase animate-pulse">
-                    To'lanmagan
+                    {data.isNew ? "Yangi davomat" : "To'lanmagan"}
                   </Badge>
                 )}
               </div>
@@ -243,14 +253,14 @@ export default function PublicPayDetailView() {
                 <span className="text-slate-900 dark:text-white font-extrabold text-lg">Umumiy summa</span>
                 <div className="text-right">
                   <span className="text-4xl font-black text-blue-600 dark:text-blue-400 block tracking-tight">
-                    {new Intl.NumberFormat("uz-UZ").format(amountToPay)}
+                    {amountToPay > 0 ? new Intl.NumberFormat("uz-UZ").format(amountToPay) : "—"}
                   </span>
                   <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">UZS</span>
                 </div>
               </div>
             </div>
 
-            {!isPaid && amountToPay > 0 && (
+            {!isPaid && (
               <div className="grid gap-4 pt-4">
                 {(data.availableMethods || ["click", "payme"]).map((method: string) => {
                   const m = method.toLowerCase();
@@ -281,12 +291,11 @@ export default function PublicPayDetailView() {
               </div>
             )}
             
-            {/* Alternative: Direct Pay Full Debt Link if provided by backend */}
-            {!isPaid && data.paymentUrl && selectedPeriods.length === pendingPeriods.length && (
+            {!isPaid && data.paymentUrl && (isContract ? selectedPeriods.length === pendingPeriods.length : true) && (
               <div className="pt-4">
                 <Button 
                   asChild
-                  className="w-full h-14 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-xl shadow-blue-500/20"
+                  className="w-full h-14 bg-linear-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-xl shadow-blue-500/20"
                 >
                   <a href={data.paymentUrl}>
                     <CreditCard className="mr-2 h-5 w-5" />
