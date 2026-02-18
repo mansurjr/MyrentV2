@@ -301,7 +301,7 @@ export const columns = (onEdit: (contract: Contract) => void, isArchived: boolea
     header: "Amal qilish muddati",
     cell: ({ row }) => {
       const date = row.getValue("expiryDate") as string;
-      if (!date) return "—";
+      if (!date) return "Berilmagan";
       return (
         <div className="flex items-center gap-2 text-muted-foreground">
           <Calendar className="h-3.5 w-3.5" />

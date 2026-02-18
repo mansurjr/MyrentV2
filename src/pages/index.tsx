@@ -16,6 +16,8 @@ import ReconciliationPage from "./reconciliation";
 import MapPage from "./map";
 import AttendancePage from "./attendances";
 import StatisticsPage from "./statistics";
+import PublicPayView from "./public-pay/PublicPayView";
+import PublicPayDetailView from "./public-pay/PublicPayDetailView";
 import NotFoundPage from "./not-found";
 import { ErrorBoundary } from "@/components/error/ErrorBoundary";
 
@@ -25,6 +27,18 @@ const routes = [
     element: <LoginPage />,
     errorElement: <ErrorBoundary />,
     handle: { title: "nav.login" },
+  },
+  {
+    path: "/pay",
+    element: <PublicPayView />,
+    errorElement: <ErrorBoundary />,
+    handle: { title: "Ijara To'lovi" },
+  },
+  {
+    path: "/pay/detail",
+    element: <PublicPayDetailView />,
+    errorElement: <ErrorBoundary />,
+    handle: { title: "To'lov Tafsilotlari" },
   },
   {
     path: "/",

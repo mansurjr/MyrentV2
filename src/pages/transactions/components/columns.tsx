@@ -37,7 +37,7 @@ export const columns: ColumnDef<Transaction>[] = [
       const method = row.getValue("paymentMethod") as string;
       return (
         <Badge variant="outline" className="font-medium">
-          {method === "CASH" ? "Naqd" : method}
+          {method === "CASH" ? "Bank orqali" : method}
         </Badge>
       );
     },
@@ -47,15 +47,16 @@ export const columns: ColumnDef<Transaction>[] = [
     header: "Holati",
     cell: ({ row }) => {
       const status = row.getValue("status") as string;
+      const isPaid = status === "PAID" || status === "COMPLETED";
       return (
         <Badge 
           className={cn(
-            "font-bold",
-            status === "PAID" ? "bg-emerald-500 hover:bg-emerald-600" : 
+            "font-bold text-white",
+            isPaid ? "bg-emerald-500 hover:bg-emerald-600" : 
             status === "PENDING" ? "bg-amber-500 hover:bg-amber-600" : "bg-destructive"
           )}
         >
-          {status === "PAID" ? "To'langan" : status === "PENDING" ? "Kutilmoqda" : status}
+          {isPaid ? "To'langan" : status === "PENDING" ? "Kutilmoqda" : status}
         </Badge>
       );
     },

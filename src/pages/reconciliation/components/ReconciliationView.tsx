@@ -22,6 +22,7 @@ import { useStores } from "../../stores/hooks/useStores";
 import { useOwners } from "../../owners/hooks/useOwners";
 import { useContracts } from "../../contracts/hooks/useContracts";
 import { useDebounce } from "@/hooks/useDebounce";
+import { ManualPayDialog } from "../../contracts/components/ManualPayDialog";
 import {
   Card,
   CardContent,
@@ -96,6 +97,7 @@ export function ReconciliationView() {
   const [editedAmounts, setEditedAmounts] = useState<Record<string, string>>({});
   const [editingPeriodId, setEditingPeriodId] = useState<string | null>(null);
   const [tempAmount, setTempAmount] = useState<string>("");
+  const [isManualPayOpen, setIsManualPayOpen] = useState(false);
 
   const debouncedSearch = useDebounce(searchTerm, 400);
 
@@ -616,6 +618,11 @@ export function ReconciliationView() {
                                 if (!selectedContract) return;
                                 setIsRedirecting(true);
                                 try {
+                                  if (selectedContract.paymentType === 'BANK_ONLY') {
+                                    setIsManualPayOpen(true);
+                                    return;
+                                  }
+                                  
                                   const pendingPeriods = selectedContract.paymentPeriods
                                     ?.filter(p => p.status === 'PENDING')
                                     ?.sort((a, b) => { // Sort strictly ascending to pay oldest first
@@ -638,7 +645,7 @@ export function ReconciliationView() {
                               ) : (
                                 <PayIcon className="h-4 w-4" />
                               )}
-                              {t("reconciliation.pay_debt")}
+                              {selectedContract.paymentType === 'ONLINE' ? t("reconciliation.pay_debt") : t("contracts.manual_pay")}
                               {!isRedirecting && <ArrowRight className="h-4 w-4 ml-auto" />}
                             </Button>
                           ) : null}
@@ -768,6 +775,12 @@ export function ReconciliationView() {
                                         <button
                                           onClick={async () => {
                                             if (!selectedContract) return;
+
+                                            if (selectedContract.paymentType === 'BANK_ONLY') {
+                                              setIsManualPayOpen(true);
+                                              return;
+                                            }
+
                                             setIsRedirecting(true);
                                             try {
                                               await automatePaymentRedirect(selectedContract.id, [month.id]);
@@ -782,7 +795,7 @@ export function ReconciliationView() {
                                           ) : (
                                             <PayIcon className="h-3 w-3" />
                                           )}
-                                          {t("common.pay")}
+                                          {selectedContract.paymentType === 'ONLINE' ? t("common.pay") : t("contracts.manual_pay")}
                                         </button>
                                     )}
                                   </div>
@@ -936,6 +949,14 @@ export function ReconciliationView() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {selectedContract && (
+        <ManualPayDialog
+          contract={selectedContract}
+          open={isManualPayOpen}
+          onOpenChange={setIsManualPayOpen}
+        />
+      )}
     </div>
   );
 }

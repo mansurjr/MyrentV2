@@ -215,8 +215,10 @@
     "clear": "Clear",
     "store": "Store",
     "stall": "Stall",
-    "cash": "Cash",
-    "reversed": "Reversed"
+    "cash": "Via Bank",
+    "reversed": "Reversed",
+    "status_completed": "Paid",
+    "status_cancelled": "Cancelled"
   },
   "statistics": {
     "title": "Statistics",

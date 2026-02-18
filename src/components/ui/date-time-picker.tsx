@@ -28,6 +28,7 @@ export interface DateTimePickerProps {
   setDate: (date?: Date) => void
   placeholder?: string
   showTime?: boolean
+  disabled?: boolean
 }
 
 export function DateTimePicker({
@@ -35,6 +36,7 @@ export function DateTimePicker({
   setDate,
   placeholder = "Sanani tanlang",
   showTime = false,
+  disabled = false,
 }: DateTimePickerProps) {
   const { i18n } = useTranslation()
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(date)
@@ -90,8 +92,10 @@ export function DateTimePicker({
           variant={"outline"}
           className={cn(
             "w-full justify-start text-left font-normal h-10 border-border/50 bg-background focus:ring-primary/20 hover:bg-accent/50 transition-colors",
-            !date && "text-muted-foreground"
+            !date && "text-muted-foreground",
+            disabled && "cursor-not-allowed opacity-50"
           )}
+          disabled={disabled}
         >
           <CalendarIcon className="mr-2 h-4 w-4 shrink-0 opacity-70" />
           <span className="truncate">

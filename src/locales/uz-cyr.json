@@ -128,5 +128,9 @@
     "email": "Електрон почта",
     "password": "Парол",
     "submit": "Кириш"
+  },
+  "transactions": {
+    "cash": "Банк орқали",
+    "completed": "Тўланган"
   }
 }

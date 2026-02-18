@@ -110,6 +110,7 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
             <Select
               value={formData.ownerId ? String(formData.ownerId) : undefined}
               onValueChange={(val) => setFormData({ ...formData, ownerId: Number(val) })}
+              disabled={!!contract}
             >
               <SelectTrigger className="h-10 w-full">
                 <SelectValue placeholder="Tadbirkorni tanlang" />
@@ -197,7 +198,7 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
                   {}
                   {contract && contract.store && (
                     <SelectItem key={contract.store.id} value={String(contract.store.id)}>
-                      {contract.store.storeNumber}
+                      {contract.store.storeNumber} ({contract.store.area} m²)
                     </SelectItem>
                   )}
 
@@ -273,6 +274,7 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
                   ...formData, 
                   issueDate: d ? format(d, 'yyyy-MM-dd') : '' 
                 })}
+                disabled={!!contract}
               />
             </div>
             <div className="grid gap-2">
@@ -296,6 +298,7 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
             <Select
               value={formData.paymentType}
               onValueChange={(val: 'ONLINE' | 'BANK_ONLY') => setFormData({ ...formData, paymentType: val })}
+              disabled={!!contract}
             >
               <SelectTrigger className="h-10">
                 <SelectValue placeholder={t("contracts.payment_type")} />
