@@ -16,6 +16,7 @@ import {
   XCircle,
   AlertCircle,
   ArrowRight,
+  Pencil,
 } from "lucide-react";
 import { useStores } from "../../stores/hooks/useStores";
 import { useOwners } from "../../owners/hooks/useOwners";
@@ -58,6 +59,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 type FilterType = "store" | "owner";
 
@@ -65,7 +74,7 @@ export function ReconciliationView() {
   const { t } = useTranslation();
   const { useGetStores } = useStores();
   const { useGetOwners } = useOwners();
-  const { useGetContracts, payContract, automatePaymentRedirect } = useContracts();
+  const { useGetContracts, payContract, automatePaymentRedirect, updatePeriod } = useContracts();
 
   const [filterType, setFilterType] = useState<FilterType>("store");
   const [searchTerm, setSearchTerm] = useState("");
@@ -84,6 +93,9 @@ export function ReconciliationView() {
   } | null>(null);
 
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [editedAmounts, setEditedAmounts] = useState<Record<string, string>>({});
+  const [editingPeriodId, setEditingPeriodId] = useState<string | null>(null);
+  const [tempAmount, setTempAmount] = useState<string>("");
 
   const debouncedSearch = useDebounce(searchTerm, 400);
 
@@ -156,7 +168,8 @@ export function ReconciliationView() {
         isCurrent,
         isFuture: false, // We filtered future months out
         status: period.status,
-        amount: period.amount
+        amount: period.amount,
+        isEdit: period.isEdit
       };
     });
   }, [selectedContract]);
@@ -188,10 +201,12 @@ export function ReconciliationView() {
     const totalPaidMonths = paymentHistory.filter((m) => m.isPaid).length;
     const totalUnpaidPastMonths = paymentHistory.filter((m) => !m.isPaid).length;
     
-    // Calculate total debt amount from unpaid periods
     const totalDebtAmount = paymentHistory
       .filter((m) => !m.isPaid)
-      .reduce((sum, m) => sum + Number(m.amount || selectedContract.shopMonthlyFee || 0), 0);
+      .reduce((sum, m) => {
+        const amount = editedAmounts[m.id!] || m.amount || selectedContract.shopMonthlyFee || 0;
+        return sum + Number(amount);
+      }, 0);
 
     return {
       monthsRemaining: expiryDate
@@ -201,7 +216,7 @@ export function ReconciliationView() {
       totalUnpaidPastMonths,
       totalDebtAmount
     };
-  }, [selectedContract, paymentHistory]);
+  }, [selectedContract, paymentHistory, editedAmounts]);
 
   const handleFilterTypeChange = (type: FilterType) => {
     setFilterType(type);
@@ -210,6 +225,7 @@ export function ReconciliationView() {
     setSelectedOwnerId(null);
     setSelectedContractId(null);
     setSelectedYear("all");
+    setEditedAmounts({});
   };
 
   const handlePay = async () => {
@@ -458,6 +474,7 @@ export function ReconciliationView() {
                           onClick={() => {
                             setSelectedContractId(contract.id);
                             setSelectedYear("all");
+                            setEditedAmounts({});
                           }}
                           className={cn(
                             "text-left p-4 rounded-xl  transition-all flex items-start gap-4 group/item border",
@@ -771,25 +788,49 @@ export function ReconciliationView() {
                                   </div>
                                 </div>
                               </div>
-                              <Badge
-                                variant={
-                                  month.isPaid
-                                    ? "outline"
+                              <div className="flex flex-col items-end gap-2">
+                                <div className="flex items-center gap-2">
+                                  <div className="text-right">
+                                    <span className="text-sm font-bold block">
+                                      {new Intl.NumberFormat("uz-UZ").format(
+                                        Number(editedAmounts[month.id!] ?? month.amount)
+                                      )}{" "}
+                                      UZS
+                                    </span>
+                                  </div>
+                                  {month.isEdit && !month.isPaid && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-primary hover:bg-primary/10"
+                                      onClick={() => {
+                                        setEditingPeriodId(month.id!);
+                                        setTempAmount(String(editedAmounts[month.id!] ?? month.amount));
+                                      }}>
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                                <Badge
+                                  variant={
+                                    month.isPaid
+                                      ? "outline"
+                                      : month.isPast
+                                        ? "destructive"
+                                        : "secondary"
+                                  }
+                                  className={cn(
+                                    "text-[10px] uppercase h-6 px-2",
+                                    month.isPaid &&
+                                      "border-emerald-200 bg-emerald-50 text-emerald-700",
+                                  )}>
+                                  {month.isPaid
+                                    ? t("common.paid")
                                     : month.isPast
-                                      ? "destructive"
-                                      : "secondary"
-                                }
-                                className={cn(
-                                  "text-[10px] uppercase h-6 px-2",
-                                  month.isPaid &&
-                                    "border-emerald-200 bg-emerald-50 text-emerald-700",
-                                )}>
-                                {month.isPaid
-                                  ? t("common.paid")
-                                  : month.isPast
-                                    ? t("common.debt")
-                                    : t("common.waiting")}
-                              </Badge>
+                                      ? t("common.debt")
+                                      : t("common.waiting")}
+                                </Badge>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -840,6 +881,61 @@ export function ReconciliationView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!editingPeriodId} onOpenChange={(open) => !open && setEditingPeriodId(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{t("contracts.edit_amount") || "Изменить сумму"}</DialogTitle>
+            <DialogDescription>
+              {t("contracts.edit_amount_description") || "Введите новую сумму для данного периода оплаты."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="amount">{t("contracts.monthly_fee")}</Label>
+              <div className="relative">
+                <Input
+                  id="amount"
+                  type="number"
+                  value={tempAmount}
+                  onChange={(e) => setTempAmount(e.target.value)}
+                  className="pl-3 pr-12"
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <span className="text-sm font-bold text-muted-foreground uppercase">UZS</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingPeriodId(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              onClick={async () => {
+                if (editingPeriodId && tempAmount) {
+                  try {
+                    await updatePeriod.mutateAsync({
+                      periodId: editingPeriodId,
+                      amount: Number(tempAmount),
+                    });
+                    setEditingPeriodId(null);
+                  } catch (error) {
+                    console.error("Update period error:", error);
+                  }
+                }
+              }}
+              disabled={updatePeriod.isPending}
+            >
+              {updatePeriod.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                t("common.save")
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

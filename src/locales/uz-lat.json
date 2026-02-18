@@ -149,6 +149,8 @@
     "owner": "Tadbirkor",
     "store": "Do'kon",
     "save": "Shartnomani saqlash",
+    "edit_amount": "Summani tahrirlash",
+    "edit_amount_description": "Ushbu to'lov davri uchun yangi summani kiriting.",
     "description": "Barcha tadbirkorlar va ularning do'konlari bilan tuzilgan shartnomalarni boshqarish.",
     "search_placeholder": "Qidirish (№, Tadbirkor, Do'kon)...",
     "payment_status": "To'lov holati",

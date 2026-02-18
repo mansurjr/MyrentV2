@@ -151,6 +151,16 @@ export const useContracts = () => {
     }
   };
 
+  const updatePeriod = useMutation({
+    mutationFn: async ({ periodId, amount }: { periodId: string; amount: number }) => {
+      const response = await baseApi.patch(`/contracts/periods/${periodId}`, { amount });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contracts"] });
+    },
+  });
+
   return {
     useGetContracts,
     useGetContract,
@@ -161,5 +171,6 @@ export const useContracts = () => {
     manualPayContract,
     getPaymentUrl,
     automatePaymentRedirect,
+    updatePeriod,
   };
 };

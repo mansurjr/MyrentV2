@@ -124,6 +124,7 @@ export interface ContractPaymentPeriod {
   transactionId: number | null;
   createdAt: string;
   updatedAt: string;
+  isEdit?: boolean;
 }
 
 export interface Contract {

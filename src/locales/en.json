@@ -149,6 +149,8 @@
     "owner": "Owner",
     "store": "Store",
     "save": "Save Contract",
+    "edit_amount": "Edit Amount",
+    "edit_amount_description": "Enter the new amount for this payment period.",
     "description": "Manage contracts made with all entrepreneurs and their stores.",
     "search_placeholder": "Search (№, Entrepreneur, Store)...",
     "payment_status": "Payment status",
