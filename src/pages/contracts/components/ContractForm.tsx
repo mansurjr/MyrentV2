@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
 import {
   Select,
   SelectContent,
@@ -79,19 +80,34 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
     e.preventDefault();
     try {
       if (contract) {
+        // When updating, we might not want to send ownerId and storeId if they haven't changed
+        // or if the backend doesn't allow changing them.
+        const { ownerId, storeId, ...updateDto } = formData;
         await updateContract.mutateAsync({ 
           id: contract.id, 
-          dto: { ...formData, shopMonthlyFee: Number(formData.shopMonthlyFee) } as any 
+          dto: { ...updateDto, shopMonthlyFee: Number(formData.shopMonthlyFee) } as any 
+        });
+        toast({
+          title: t("common.success"),
+          description: t("common.saved_successfully"),
         });
       } else {
         await createContract.mutateAsync({
           ...formData,
           shopMonthlyFee: Number(formData.shopMonthlyFee)
         } as any);
+        toast({
+          title: t("common.created_successfully"),
+        });
       }
       onSuccess();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving contract:", error);
+      toast({
+        title: t("common.error"),
+        description: error.response?.data?.message || t("common.error_saving"),
+        variant: "destructive",
+      });
     }
   };
 

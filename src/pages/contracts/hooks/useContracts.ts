@@ -88,7 +88,7 @@ export const useContracts = () => {
 
   const updateContract = useMutation({
     mutationFn: async ({ id, dto }: { id: number; dto: IUpdateContractDto }) => {
-      const response = await baseApi.put<Contract>(`/contracts/${id}`, dto);
+      const response = await baseApi.patch<Contract>(`/contracts/${id}`, dto);
       return response.data;
     },
     onSuccess: () => {
