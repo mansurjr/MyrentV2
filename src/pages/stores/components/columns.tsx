@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useStores } from "../hooks/useStores";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -191,7 +192,7 @@ export const columns = (onEdit: (store: Store) => void): ColumnDef<Store>[] => [
     header: "Bo'lim",
     cell: ({ row }) => (
       <div className="font-medium">
-        {row.original.Section?.name || "—"}
+        {row.original.section?.name || "—"}
       </div>
     ),
   },
@@ -208,6 +209,28 @@ export const columns = (onEdit: (store: Store) => void): ColumnDef<Store>[] => [
       return (
         <Badge variant={isOccupied ? "destructive" : "default"} className="font-medium">
           {isOccupied ? "Band" : "Bo'sh"}
+        </Badge>
+      );
+    },
+  },
+  {
+    accessorKey: "paidCurrentMonth",
+    header: "To'lov holati",
+    cell: ({ row }) => {
+      const isOccupied = row.original.isOccupied;
+      const isPaid = row.original.paidCurrentMonth;
+      
+      if (!isOccupied) return "—";
+
+      return (
+        <Badge 
+          variant={isPaid ? "default" : "destructive"} 
+          className={cn(
+            "font-bold text-white",
+            isPaid ? "bg-blue-600 hover:bg-blue-700" : "bg-red-600 hover:bg-red-700"
+          )}
+        >
+          {isPaid ? "To'langan" : "To'lanmagan"}
         </Badge>
       );
     },

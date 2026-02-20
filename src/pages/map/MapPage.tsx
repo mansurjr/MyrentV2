@@ -223,7 +223,7 @@ export default function MapPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3">
                   {stores.map((store: any) => {
                     const isTaken = store.isOccupied;
-                    const isPaid = store.contracts?.[0]?.isPaidCurrentMonth;
+                    const isPaid = store.paidCurrentMonth;
                     
                     let statusClasses = "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400";
                     if (isTaken) {
@@ -347,7 +347,7 @@ export default function MapPage() {
                   const todayStr = format(new Date(), "yyyy-MM-dd");
                   const isPaid = selectedItem?.type === 'stall' 
                     ? selectedItem?.data.attendances?.some((a: any) => format(new Date(a.date), "yyyy-MM-dd") === todayStr && a.status === 'PAID')
-                    : selectedItem?.data.contracts?.[0]?.isPaidCurrentMonth;
+                    : selectedItem?.data.paidCurrentMonth;
 
                   return (
                     <Badge 
@@ -449,7 +449,7 @@ export default function MapPage() {
             </DialogFooter>
           ) : selectedItem?.type === 'store' && itemData?.contracts?.[0] ? (
             <DialogFooter className="mt-6 flex flex-col gap-2">
-              {!itemData.contracts[0].isPaidCurrentMonth ? (
+              {!itemData.paidCurrentMonth ? (
                 <div className="flex flex-col gap-2 w-full">
                   <Button 
                     onClick={handleContractPay}

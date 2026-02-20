@@ -85,6 +85,7 @@ export interface Store {
   sectionId: number | null;
   section?: Section | undefined;
   isOccupied?: boolean;
+  paidCurrentMonth?: boolean;
   contracts?: Contract[];
 }
 
