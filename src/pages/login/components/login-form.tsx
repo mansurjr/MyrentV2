@@ -17,6 +17,7 @@ import { useAuth } from "@/hooks/api/useAuth"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import { useTranslation } from "react-i18next"
+import { getApiErrorMessage } from "@/lib/api-error"
 
 export function LoginForm({
   className,
@@ -38,14 +39,6 @@ export function LoginForm({
     }
   }
 
-  const getErrorMessage = (error: any) => {
-    if (!error) return null;
-    if (error.response?.status === 403) {
-      return t("common.login_error_403");
-    }
-    return error.response?.data?.message || error.message || t("common.login_error_general");
-  }
-
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
@@ -60,7 +53,7 @@ export function LoginForm({
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>{t("common.login_error_title")}</AlertTitle>
                   <AlertDescription>
-                    {getErrorMessage(loginError)}
+                    {getApiErrorMessage(loginError, t)}
                   </AlertDescription>
                 </Alert>
               )}

@@ -12,27 +12,34 @@ interface StatisticsParams {
 }
 
 export const useStatistics = () => {
-  const getMonthlySeries = (params: { months?: number; type?: string }) => {
+  const getMonthlySeries = (params: { months?: number; type?: "stall" | "store" | "all" }) => {
+    const resolvedParams = {
+      months: params.months || 12,
+      type: params.type || "all",
+    };
+
     return useQuery({
-      queryKey: ["statistics", "monthly-series", params],
+      queryKey: ["statistics", "monthly-series", resolvedParams],
       queryFn: async () => {
         const { data } = await baseApi.get("/statistics/series/monthly", {
-          params: {
-            months: params.months || 12,
-            type: params.type || "all",
-          },
+          params: resolvedParams,
         });
         return data;
       },
     });
   };
 
-  const getRevenueByEntity = (params: { month?: number; year?: number }) => {
+  const getRevenueByEntity = (params: { month?: number; year?: number; type?: "stall" | "store" | "all" }) => {
+    const resolvedParams = {
+      ...params,
+      type: params.type || "all",
+    };
+
     return useQuery({
-      queryKey: ["statistics", "by-entity", params],
+      queryKey: ["statistics", "by-entity", resolvedParams],
       queryFn: async () => {
         const { data } = await baseApi.get("/statistics/by-entity", {
-          params,
+          params: resolvedParams,
         });
         return data;
       },
@@ -40,10 +47,15 @@ export const useStatistics = () => {
   };
 
   const getTotals = (params: StatisticsParams) => {
+    const resolvedParams = {
+      ...params,
+      type: params.type || "all",
+    };
+
     return useQuery({
-      queryKey: ["statistics", "totals", params],
+      queryKey: ["statistics", "totals", resolvedParams],
       queryFn: async () => {
-        const { data } = await baseApi.get("/statistics/totals", { params });
+        const { data } = await baseApi.get("/statistics/totals", { params: resolvedParams });
         return data;
       },
     });

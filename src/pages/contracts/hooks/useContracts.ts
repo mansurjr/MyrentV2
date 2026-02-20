@@ -137,6 +137,14 @@ export const useContracts = () => {
     return response.data;
   };
 
+  const getPaymentUrls = async (id: number, dto: IPaymentUrlsDto) => {
+    const response = await baseApi.post<IPaymentUrlsResponse>(
+      `/contracts/${id}/payment-url`,
+      dto
+    );
+    return response.data;
+  };
+
   const automatePaymentRedirect = async (id: number, periodIds: string[]) => {
     try {
       const response = await getPaymentUrl(id, periodIds);
@@ -170,6 +178,7 @@ export const useContracts = () => {
     payContract,
     manualPayContract,
     getPaymentUrl,
+    getPaymentUrls,
     automatePaymentRedirect,
     updatePeriod,
   };

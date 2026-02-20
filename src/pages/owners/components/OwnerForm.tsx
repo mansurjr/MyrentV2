@@ -19,7 +19,11 @@ import {
 import { cn } from "@/lib/utils";
 import { useTranslation } from "react-i18next";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import type { AxiosError } from "axios";
+import {
+  extractFieldErrors,
+  getApiErrorMessage,
+  normalizeApiError,
+} from "@/lib/api-error";
 
 interface OwnerFormProps {
   owner?: Owner | null;
@@ -32,6 +36,7 @@ export function OwnerForm({ owner, onSuccess, onCancel }: OwnerFormProps) {
   const isEdit = !!owner;
   const { createOwner, updateOwner } = useOwners();
   const [apiStatus, setApiStatus] = useState<number | null>(null);
+  const [apiMessage, setApiMessage] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<ICreateOwnerDto>(() => {
     return {
@@ -69,6 +74,7 @@ export function OwnerForm({ owner, onSuccess, onCancel }: OwnerFormProps) {
     e.preventDefault();
     if (!validate()) return;
     setApiStatus(null);
+    setApiMessage(null);
 
     try {
       if (isEdit && owner) {
@@ -83,9 +89,21 @@ export function OwnerForm({ owner, onSuccess, onCancel }: OwnerFormProps) {
         onSuccess();
       }, 1500);
     } catch (error) {
-      const axiosError = error as AxiosError;
-      const status = axiosError.response?.status;
-      setApiStatus(status || 500);
+      const apiError = normalizeApiError(error);
+      setApiStatus(apiError.statusCode);
+      setApiMessage(getApiErrorMessage(error, t));
+
+      if (apiError.code === "VALIDATION_ERROR") {
+        const fieldErrors = extractFieldErrors(error);
+        setErrors((prev) => ({
+          ...prev,
+          fullName: fieldErrors.fullName ?? prev.fullName,
+          tin: fieldErrors.tin ?? prev.tin,
+          phoneNumber: fieldErrors.phoneNumber ?? prev.phoneNumber,
+          address: fieldErrors.address ?? prev.address,
+        }));
+      }
+
       console.error("Error saving owner:", error);
     }
   };
@@ -107,23 +125,15 @@ export function OwnerForm({ owner, onSuccess, onCancel }: OwnerFormProps) {
           </Alert>
         )}
 
-        {apiStatus === 409 && (
+        {apiStatus && apiStatus >= 400 && (
           <Alert
             variant="destructive"
             className="animate-in fade-in slide-in-from-top-2">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>{t("common.error")}</AlertTitle>
-            <AlertDescription>{t("common.already_exists")}</AlertDescription>
-          </Alert>
-        )}
-
-        {apiStatus && apiStatus >= 500 && (
-          <Alert
-            variant="destructive"
-            className="animate-in fade-in slide-in-from-top-2">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>{t("common.error")}</AlertTitle>
-            <AlertDescription>{t("common.error")}</AlertDescription>
+            <AlertDescription>
+              {apiMessage || t("common.api_errors.default")}
+            </AlertDescription>
           </Alert>
         )}
 

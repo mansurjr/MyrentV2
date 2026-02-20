@@ -112,7 +112,7 @@ export const columns = (
       if (!attendance) {
         return (
           <Button 
-            onClick={() => onCreate(stall.id, Number(stall.dailyFee) || 0)}
+            onClick={() => onCreate(Number(stall.id), Number(stall.dailyFee) || 0)}
             disabled={isLoading}
             size="sm"
             className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-4"

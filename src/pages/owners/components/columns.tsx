@@ -14,6 +14,8 @@ import { useState } from "react";
 import { useSidebarStore } from "@/store/useSidebarStore";
 import { OwnerForm } from "./OwnerForm";
 import { format } from "date-fns";
+import { useTranslation } from "react-i18next";
+import { getApiErrorMessage } from "@/lib/api-error";
 
 export const getColumns = (isArchived: boolean = false): ColumnDef<Owner>[] => [
   {
@@ -82,6 +84,7 @@ export const getColumns = (isArchived: boolean = false): ColumnDef<Owner>[] => [
       const { deleteOwner, updateOwner } = useOwners();
       const { openSidebar, closeSidebar } = useSidebarStore();
       const [menuOpen, setMenuOpen] = useState(false);
+      const { t } = useTranslation();
 
       const handleEdit = () => {
         openSidebar({
@@ -105,6 +108,7 @@ export const getColumns = (isArchived: boolean = false): ColumnDef<Owner>[] => [
           setMenuOpen(false);
         } catch (error) {
           console.error("Error restoring owner:", error);
+          window.alert(getApiErrorMessage(error, t));
         }
       };
 
@@ -114,6 +118,7 @@ export const getColumns = (isArchived: boolean = false): ColumnDef<Owner>[] => [
           setMenuOpen(false);
         } catch (error) {
           console.error("Error archiving owner:", error);
+          window.alert(getApiErrorMessage(error, t));
         }
       };
 

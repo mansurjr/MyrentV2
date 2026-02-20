@@ -30,6 +30,7 @@ import { useNavigate } from "react-router-dom";
 
 import { ManualPayDialog } from "./ManualPayDialog";
 import { useTranslation } from "react-i18next";
+import { getApiErrorMessage } from "@/lib/api-error";
 
 interface ActionCellProps {
   contract: Contract;
@@ -54,8 +55,13 @@ const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
     setMenuOpen(false);
     const pendingPeriods = contract.paymentPeriods?.filter(p => p.status === 'PENDING') || [];
     if (pendingPeriods.length === 0) return;
-    
-    await automatePaymentRedirect(contract.id, pendingPeriods.map(p => p.id));
+
+    try {
+      await automatePaymentRedirect(contract.id, pendingPeriods.map(p => p.id));
+    } catch (error) {
+      console.error("Error redirecting payment:", error);
+      window.alert(getApiErrorMessage(error, t));
+    }
   };
 
   const handleFinish = async () => {
@@ -65,6 +71,7 @@ const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
       setMenuOpen(false);
     } catch (error) {
       console.error("Error archiving contract:", error);
+      window.alert(getApiErrorMessage(error, t));
     }
   };
 
@@ -77,6 +84,7 @@ const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
       setMenuOpen(false);
     } catch (error) {
       console.error("Error restoring contract:", error);
+      window.alert(getApiErrorMessage(error, t));
     }
   };
   

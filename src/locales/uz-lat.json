@@ -66,7 +66,14 @@
     "restore": "Tiklash",
     "archived": "Arxivlangan",
     "archived_by": "Tomonidan arxivlangan",
-    "archived_at": "Arxivlangan sana"
+    "archived_at": "Arxivlangan sana",
+    "api_errors": {
+      "FORBIDDEN_ROLE": "Sizda bu amalni bajarish huquqi yo'q.",
+      "VALIDATION_ERROR": "Iltimos, belgilangan maydonlarni to'g'rilang.",
+      "UNAUTHORIZED": "Iltimos, qaytadan tizimga kiring.",
+      "NOT_FOUND": "So'ralgan ma'lumot topilmadi.",
+      "default": "Xatolik yuz berdi. Iltimos, qayta urinib ko'ring."
+    }
   },
   "dashboard": {
     "welcome": "Xush kelibsiz!",

@@ -187,11 +187,11 @@ export const columns = (onEdit: (store: Store) => void): ColumnDef<Store>[] => [
     ),
   },
   {
-    accessorKey: "Section",
+    accessorKey: "section",
     header: "Bo'lim",
     cell: ({ row }) => (
       <div className="font-medium">
-        {row.original.Section?.name || "—"}
+        {row.original.section?.name || "—"}
       </div>
     ),
   },

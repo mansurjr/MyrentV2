@@ -66,7 +66,14 @@
     "restore": "Restore",
     "archived": "Archived",
     "archived_by": "Archived by",
-    "archived_at": "Archived at"
+    "archived_at": "Archived at",
+    "api_errors": {
+      "FORBIDDEN_ROLE": "You do not have access to perform this action.",
+      "VALIDATION_ERROR": "Please fix highlighted fields.",
+      "UNAUTHORIZED": "Please sign in again.",
+      "NOT_FOUND": "Requested resource was not found.",
+      "default": "Something went wrong. Please try again."
+    }
   },
   "dashboard": {
     "welcome": "Welcome!",

@@ -61,8 +61,8 @@ const StatisticsPage = () => {
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
 
-  const monthlySeriesQuery = getMonthlySeries({ months: 12 });
-  const byEntityQuery = getRevenueByEntity({ month: currentMonth, year: currentYear });
+  const monthlySeriesQuery = getMonthlySeries({ months: 12, type: "all" });
+  const byEntityQuery = getRevenueByEntity({ month: currentMonth, year: currentYear, type: "all" });
 
   const chartData = useMemo(() => {
     if (!monthlySeriesQuery.data) return [];

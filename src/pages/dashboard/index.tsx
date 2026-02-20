@@ -25,7 +25,10 @@ import { uz } from "date-fns/locale";
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { useTransactions } from "../transactions/hooks/useTransactions";
-import { useStatistics } from "../statistics/hooks/useStatistics";
+import { useStores } from "../stores/hooks/useStores";
+import { useStalls } from "../stalls/hooks/useStalls";
+import { useOwners } from "../owners/hooks/useOwners";
+import { useContracts } from "../contracts/hooks/useContracts";
 
 const StatCard = ({ title, value, description, icon: Icon, color }: any) => (
   <Card className="relative overflow-hidden border-border/50 bg-card border-none shadow-sm group hover:shadow-md transition-all duration-300">
@@ -60,55 +63,77 @@ const DashboardPage = () => {
   const navigate = useNavigate();
   const { useGetTransactions } = useTransactions();
   const transactionsQuery = useGetTransactions({ page: 1, limit: 8 });
+  const { useGetStores } = useStores();
+  const { useGetStalls } = useStalls();
+  const { useGetOwners } = useOwners();
+  const { useGetContracts } = useContracts();
+
+  const storesQuery = useGetStores({ page: 1, limit: 1 });
+  const stallsQuery = useGetStalls({ page: 1, limit: 1 });
+  const ownersQuery = useGetOwners({ page: 1, limit: 1 });
+  const activeContractsQuery = useGetContracts({ page: 1, limit: 1, isActive: true });
+  const archivedContractsQuery = useGetContracts({ page: 1, limit: 1, isActive: false });
 
   const currentMonth = useMemo(
     () => format(new Date(), "MMMM", { locale: uz }),
     [],
   );
 
-  const { getTotals } = useStatistics();
-  const totalsQuery = getTotals({});
-
   const stats = useMemo(() => {
-    const data = totalsQuery.data || {};
+    const storesCount = storesQuery.data?.pagination?.total ?? storesQuery.data?.total ?? 0;
+    const stallsCount = stallsQuery.data?.pagination?.total ?? stallsQuery.data?.total ?? 0;
+    const ownersCount = ownersQuery.data?.pagination?.total ?? ownersQuery.data?.total ?? 0;
+    const activeContractsCount =
+      activeContractsQuery.data?.pagination?.total ?? activeContractsQuery.data?.total ?? 0;
+    const archivedContractsCount =
+      archivedContractsQuery.data?.pagination?.total ?? archivedContractsQuery.data?.total ?? 0;
+
     return [
       {
         title: t("dashboard.total_stores"),
-        value: String(data.stores || 0),
+        value: String(storesCount),
         description: t("dashboard.stores_count_desc"),
         icon: Store,
         color: "bg-blue-600",
       },
       {
         title: t("dashboard.total_stalls"),
-        value: String(data.stalls || 0),
+        value: String(stallsCount),
         description: t("dashboard.stalls_count_desc"),
         icon: LayoutGrid,
         color: "bg-orange-500",
       },
       {
         title: t("dashboard.total_owners"),
-        value: String(data.owners || 0),
+        value: String(ownersCount),
         description: t("dashboard.owners_count_desc"),
         icon: Users,
         color: "bg-indigo-600",
       },
       {
         title: t("dashboard.active_contracts"),
-        value: String(data.contracts || 0),
+        value: String(activeContractsCount),
         description: t("dashboard.active_contracts_desc", { month: currentMonth }),
         icon: FileText,
         color: "bg-emerald-600",
       },
       {
         title: t("dashboard.archived"),
-        value: String(data.archived || 0),
+        value: String(archivedContractsCount),
         description: t("dashboard.archived_desc", { month: currentMonth }),
         icon: Archive,
         color: "bg-rose-500",
       },
     ];
-  }, [totalsQuery.data, t, currentMonth]);
+  }, [
+    storesQuery.data,
+    stallsQuery.data,
+    ownersQuery.data,
+    activeContractsQuery.data,
+    archivedContractsQuery.data,
+    t,
+    currentMonth,
+  ]);
 
   return (
     <main className="p-6 space-y-8 w-full mx-auto">

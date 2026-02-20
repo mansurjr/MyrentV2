@@ -1,4 +1,5 @@
 import axios from "axios";
+import { normalizeApiError } from "@/lib/api-error";
 
 const baseURL =`${window.location.origin}/api`
 // const baseURL =`http://localhost:3018/api`
@@ -82,6 +83,12 @@ baseApi.interceptors.response.use(
           });
       });
     }
+
+    const normalizedError = normalizeApiError(error);
+    if (error.response) {
+      error.response.data = normalizedError;
+    }
+    (error as any).apiError = normalizedError;
 
     return Promise.reject(error);
   }
