@@ -19,10 +19,10 @@ export const ContractPaymentStatus = {
   REVERSED: 'REVERSED' as const,
 };
 
-export type ContractPaymentType = 'ONLINE' | 'BANK_ONLY';
+export type ContractPaymentType = 'ONLINE' | 'BANK';
 export const ContractPaymentType = {
   ONLINE: 'ONLINE' as const,
-  BANK_ONLY: 'BANK_ONLY' as const,
+  BANK: 'BANK' as const,
 };
 
 export type AttendancePayment = 'PAID' | 'UNPAID';

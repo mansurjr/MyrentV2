@@ -115,16 +115,18 @@ const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
                   {t("common.pay")}
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem
-                onClick={() => {
-                  setIsManualPayOpen(true);
-                  setMenuOpen(false);
-                }}
-                className="cursor-pointer text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50"
-              >
-                <CreditCard className="mr-2 h-4 w-4" />
-                {t("contracts.manual_pay")}
-              </DropdownMenuItem>
+              {contract.paymentType === "BANK" && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    setIsManualPayOpen(true);
+                    setMenuOpen(false);
+                  }}
+                  className="cursor-pointer text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50"
+                >
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  {t("contracts.manual_pay")}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 onClick={handleSeeTransactions}
                 className="cursor-pointer"

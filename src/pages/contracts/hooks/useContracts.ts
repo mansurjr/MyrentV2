@@ -6,7 +6,7 @@ export interface ICreateContractDto {
   certificateNumber?: string;
   issueDate?: string;
   expiryDate?: string;
-  paymentType: 'ONLINE' | 'BANK_ONLY';
+  paymentType: 'ONLINE' | 'BANK';
   shopMonthlyFee?: number;
   ownerId: number;
   storeId: string;
@@ -24,7 +24,7 @@ export interface IContractOptions {
   storeId?: string;
   isActive?: boolean;
   paid?: boolean;
-  paymentType?: 'ONLINE' | 'BANK_ONLY';
+  paymentType?: 'ONLINE' | 'BANK';
 }
 
 export interface IManualPayDto {

@@ -62,6 +62,7 @@
     "login_error_title": "Error",
     "login_error_403": "Invalid email or password, or access denied",
     "login_error_general": "An error occurred while logging in",
+    "forbidden_action": "You cannot perform this action",
     "export_excel": "Export to Excel",
     "restore": "Restore",
     "archived": "Archived",

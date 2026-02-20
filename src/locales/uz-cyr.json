@@ -41,6 +41,7 @@
     "login_error_title": "Хатолик",
     "login_error_403": "Емаил ёки парол хато",
     "login_error_general": "Тизимга киришда хатолик юз берди",
+    "forbidden_action": "Сиз бу амални қила олмайсиз",
     "export_excel": "Excelга экспорт",
     "restore": "Тиклаш",
     "archived": "Архивланган",

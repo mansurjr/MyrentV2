@@ -38,7 +38,7 @@ export function ContractsList() {
     search: debouncedSearch,
     isActive: true,
     paid: paymentStatus === "all" ? undefined : paymentStatus === "paid",
-    paymentType: paymentType === "all" ? undefined : paymentType as 'ONLINE' | 'BANK_ONLY',
+    paymentType: paymentType === "all" ? undefined : paymentType as 'ONLINE' | 'BANK',
   });
 
   const handleExport = async () => {
@@ -149,7 +149,7 @@ export function ContractsList() {
           <SelectContent>
             <SelectItem value="all">{t("contracts.all_types")}</SelectItem>
             <SelectItem value="ONLINE">{t("contracts.online")}</SelectItem>
-            <SelectItem value="BANK_ONLY">{t("contracts.bank_only")}</SelectItem>
+            <SelectItem value="BANK">{t("contracts.bank_only")}</SelectItem>
           </SelectContent>
         </Select>
         {(search || paymentStatus !== "all" || paymentType !== "all") && (

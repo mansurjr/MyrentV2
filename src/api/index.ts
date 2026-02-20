@@ -1,7 +1,9 @@
 import axios from "axios";
+import { toast } from "@/hooks/use-toast";
+import i18n from "../plugins/i18n";
 
-const baseURL =`${window.location.origin}/api`
-// const baseURL =`http://localhost:3018/api`
+// const baseURL =`${window.location.origin}/api`
+const baseURL =`http://localhost:3020/api`
 
 const baseApi = axios.create({
   baseURL,
@@ -40,6 +42,13 @@ baseApi.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    if (error.response?.status === 403 && !originalRequest.url?.includes("/auth/signin")) {
+      toast({
+        title: i18n.t("common.forbidden_action"),
+        variant: "destructive",
+      });
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {

@@ -618,7 +618,7 @@ export function ReconciliationView() {
                                 if (!selectedContract) return;
                                 setIsRedirecting(true);
                                 try {
-                                  if (selectedContract.paymentType === 'BANK_ONLY') {
+                                  if (selectedContract.paymentType === 'BANK') {
                                     setIsManualPayOpen(true);
                                     return;
                                   }
@@ -776,7 +776,7 @@ export function ReconciliationView() {
                                           onClick={async () => {
                                             if (!selectedContract) return;
 
-                                            if (selectedContract.paymentType === 'BANK_ONLY') {
+                                            if (selectedContract.paymentType === 'BANK') {
                                               setIsManualPayOpen(true);
                                               return;
                                             }

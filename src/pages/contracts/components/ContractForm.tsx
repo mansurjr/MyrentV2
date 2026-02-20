@@ -297,7 +297,7 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
             </Label>
             <Select
               value={formData.paymentType}
-              onValueChange={(val: 'ONLINE' | 'BANK_ONLY') => setFormData({ ...formData, paymentType: val })}
+              onValueChange={(val: 'ONLINE' | 'BANK') => setFormData({ ...formData, paymentType: val })}
               disabled={!!contract}
             >
               <SelectTrigger className="h-10">
@@ -305,7 +305,7 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ONLINE">{t("contracts.online")}</SelectItem>
-                <SelectItem value="BANK_ONLY">{t("contracts.bank_only")}</SelectItem>
+                <SelectItem value="BANK">{t("contracts.bank_only")}</SelectItem>
               </SelectContent>
             </Select>
           </div>

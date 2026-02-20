@@ -62,6 +62,7 @@
     "login_error_title": "Xatolik",
     "login_error_403": "Email yoki parol xato",
     "login_error_general": "Tizimga kirishda xatolik yuz berdi",
+    "forbidden_action": "Siz bu amalni qila olmaysiz",
     "export_excel": "Excelga eksport",
     "restore": "Tiklash",
     "archived": "Arxivlangan",
