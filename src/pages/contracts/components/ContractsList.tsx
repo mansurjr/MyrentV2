@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { DataTable } from "@/components/DataTable";
 import { useContracts } from "../hooks/useContracts";
 import { columns } from "./columns";
@@ -40,6 +40,35 @@ export function ContractsList() {
     paid: paymentStatus === "all" ? undefined : paymentStatus === "paid",
     paymentType: paymentType === "all" ? undefined : paymentType as 'ONLINE' | 'BANK',
   });
+  
+  const handleEdit = useCallback((contract: Contract) => {
+    openSidebar({
+      title: t("contracts.edit"),
+      content: (
+        <ContractForm
+          contract={contract}
+          onSuccess={() => {
+            closeSidebar();
+          }}
+        />
+      ),
+    });
+  }, [openSidebar, t, closeSidebar]);
+
+  const handleAdd = useCallback(() => {
+    openSidebar({
+      title: t("contracts.add_new"),
+      content: (
+        <ContractForm
+          onSuccess={() => {
+            closeSidebar();
+          }}
+        />
+      ),
+    });
+  }, [openSidebar, t, closeSidebar]);
+
+  const contractColumns = useMemo(() => columns(handleEdit), [handleEdit]);
 
   const handleExport = async () => {
     const filters = {
@@ -64,33 +93,6 @@ export function ContractsList() {
     } catch (error) {
       console.error(error);
     }
-  };
-
-  const handleEdit = (contract: Contract) => {
-    openSidebar({
-      title: t("contracts.edit"),
-      content: (
-        <ContractForm
-          contract={contract}
-          onSuccess={() => {
-            closeSidebar();
-          }}
-        />
-      ),
-    });
-  };
-
-  const handleAdd = () => {
-    openSidebar({
-      title: t("contracts.add_new"),
-      content: (
-        <ContractForm
-          onSuccess={() => {
-            closeSidebar();
-          }}
-        />
-      ),
-    });
   };
 
   const clearFilters = () => {
@@ -182,7 +184,7 @@ export function ContractsList() {
           </div>
         ) : (
           <DataTable
-            columns={columns(handleEdit)}
+            columns={contractColumns}
             data={data?.data || []}
             pageCount={data?.pagination?.totalPages || 1}
             pageIndex={page}

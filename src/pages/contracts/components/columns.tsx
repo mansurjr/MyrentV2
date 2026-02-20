@@ -98,13 +98,13 @@ const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
             <>
               <DropdownMenuItem
                 onClick={() => {
-                  onEdit(contract);
                   setMenuOpen(false);
+                  onEdit(contract);
                 }}
                 className="cursor-pointer"
               >
                 <Edit className="mr-2 h-4 w-4 text-muted-foreground" />
-                {t("common.save")}
+                {t("common.edit")}
               </DropdownMenuItem>
               {showPayButton && (
                 <DropdownMenuItem

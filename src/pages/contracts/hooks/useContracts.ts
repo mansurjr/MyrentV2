@@ -141,7 +141,7 @@ export const useContracts = () => {
     try {
       const response = await getPaymentUrl(id, periodIds);
       if (response?.url) {
-        window.location.assign(response.url);
+        window.open(response.url, '_blank');
       } else {
         console.error("No payment URL returned");
       }
