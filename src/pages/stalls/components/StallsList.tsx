@@ -39,7 +39,7 @@ export function StallsList() {
       }
     });
 
-    const baseURL = import.meta.env.VITE_API_URL || "http://localhost:3020/api";
+    const baseURL = `${window.location.origin}/api`;
     const url = `${baseURL}/stalls/export/excel?${queryParams.toString()}`;
     
     try {

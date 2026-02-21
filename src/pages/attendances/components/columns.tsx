@@ -43,7 +43,7 @@ const PaymentButton = ({ attendanceId, type, label, onGetPaymentUrl, isMyRent }:
 
 export const columns = (
   attendances: Attendance[],
-  onCreate: (stallId: number, amount: number) => void,
+  onCreate: (stallId: string | number, amount: number) => void,
   onDelete: (id: number) => void,
   onGetPaymentUrl: (attendanceId: number, type: string) => Promise<string>,
   isLoading: boolean,
@@ -128,18 +128,26 @@ export const columns = (
           {attendance.status === "UNPAID" && (
             <div className="flex items-center gap-2 mr-2">
               {(() => {
-                const isMyRent = window.location.hostname.includes('myrent');
-                const type = isMyRent ? 'payme' : 'click';
-                const label = isMyRent ? 'Payme' : 'Click';
-                
+                const isMyRent = window.location.hostname.includes('myrent.uz');
                 return (
-                  <PaymentButton 
-                    attendanceId={attendance.id}
-                    type={type}
-                    label={label}
-                    isMyRent={isMyRent}
-                    onGetPaymentUrl={onGetPaymentUrl}
-                  />
+                  <>
+                    <PaymentButton 
+                      attendanceId={attendance.id}
+                      type="click"
+                      label="Click"
+                      isMyRent={false}
+                      onGetPaymentUrl={onGetPaymentUrl}
+                    />
+                    {isMyRent && (
+                      <PaymentButton 
+                        attendanceId={attendance.id}
+                        type="payme"
+                        label="Payme"
+                        isMyRent={true}
+                        onGetPaymentUrl={onGetPaymentUrl}
+                      />
+                    )}
+                  </>
                 );
               })()}
             </div>

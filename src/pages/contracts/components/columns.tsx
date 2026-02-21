@@ -1,6 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import type { Contract } from "../../../types/api-responses";
-import { MoreHorizontal, Edit, Loader2, FileText, FileX, Calendar, Smartphone, Landmark, Eye, CreditCard, RefreshCw } from "lucide-react";
+import { MoreHorizontal, Edit, Loader2, FileText, FileX, Calendar, Smartphone, Landmark, Eye, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -39,7 +39,7 @@ interface ActionCellProps {
 
 const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
   const { t } = useTranslation();
-  const { updateContract, deleteContract, automatePaymentRedirect } = useContracts();
+  const { deleteContract, automatePaymentRedirect } = useContracts();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [isManualPayOpen, setIsManualPayOpen] = useState(false);
@@ -68,20 +68,11 @@ const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
     }
   };
 
-  const handleRestore = async () => {
-    try {
-      await updateContract.mutateAsync({ 
-        id: contract.id, 
-        dto: { isActive: true } 
-      });
-      setMenuOpen(false);
-    } catch (error) {
-      console.error("Error restoring contract:", error);
-    }
-  };
   
   const hasPendingPeriods = contract.paymentPeriods?.some(p => p.status === 'PENDING');
   const showPayButton = hasPendingPeriods && contract.paymentType === "ONLINE";
+
+  if (isArchived) return null;
 
   return (
     <div className="flex items-center justify-end">
@@ -94,7 +85,7 @@ const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-[200px]">
           <DropdownMenuLabel>{t("common.data")}</DropdownMenuLabel>
-          {!isArchived ? (
+          {!isArchived && (
             <>
               <DropdownMenuItem
                 onClick={() => {
@@ -172,14 +163,6 @@ const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
                 </AlertDialogContent>
               </AlertDialog>
             </>
-          ) : (
-            <DropdownMenuItem
-              onClick={handleRestore}
-              className="cursor-pointer text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50"
-            >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              {t("common.restore")}
-            </DropdownMenuItem>
           )}
         </DropdownMenuContent>
       </DropdownMenu>

@@ -50,10 +50,10 @@ export function AttendancesList() {
   const stalls = stallsQuery.data?.data || [];
   const attendances = attendancesQuery.data?.data || [];
 
-  const handleCreateAttendance = async (stallId: number, amount: number) => {
+  const handleCreateAttendance = async (stallId: string | number, amount: number) => {
     try {
       await createAttendance.mutateAsync({
-        stallId,
+        stallId: Number(stallId),
         date: dateStr,
         status: "UNPAID",
         amount,

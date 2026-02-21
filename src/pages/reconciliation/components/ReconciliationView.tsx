@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Search,
@@ -86,6 +86,7 @@ export function ReconciliationView() {
   );
   const [showInactive, setShowInactive] = useState(false);
   const [selectedYear, setSelectedYear] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "debt">("all");
 
   const [isPayConfirmOpen, setIsPayConfirmOpen] = useState(false);
   const [payingMonth, setPayingMonth] = useState<{
@@ -112,11 +113,23 @@ export function ReconciliationView() {
     isActive: true,
   });
 
-  const { data: contractsData, isLoading: contractsLoading } = useGetContracts({
+  const { data: contractsData, isLoading: contractsLoading, refetch: refetchContracts } = useGetContracts({
     storeId: filterType === "store" ? selectedStoreId || undefined : undefined,
     ownerId: filterType === "owner" ? selectedOwnerId || undefined : undefined,
     isActive: showInactive ? undefined : true,
   });
+
+  // Reload data when tab becomes active
+  useEffect(() => {
+    const handleFocus = () => {
+      refetchContracts();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [refetchContracts]);
 
   const selectedStore = useMemo(
     () => storesData?.data?.find((s) => s.id === selectedStoreId),
@@ -184,11 +197,20 @@ export function ReconciliationView() {
   }, [paymentHistory]);
 
   const filteredPaymentHistory = useMemo(() => {
-    if (selectedYear === "all") return paymentHistory;
-    return paymentHistory.filter(
-      (m) => getYear(m.date).toString() === selectedYear,
-    );
-  }, [paymentHistory, selectedYear]);
+    let filtered = paymentHistory;
+    
+    if (selectedYear !== "all") {
+      filtered = filtered.filter((m) => getYear(m.date).toString() === selectedYear);
+    }
+    
+    if (statusFilter === "paid") {
+      filtered = filtered.filter((m) => m.isPaid);
+    } else if (statusFilter === "debt") {
+      filtered = filtered.filter((m) => !m.isPaid);
+    }
+    
+    return filtered;
+  }, [paymentHistory, selectedYear, statusFilter]);
 
   const stats = useMemo(() => {
     if (!selectedContract || !selectedContract.paymentPeriods) return null;
@@ -688,13 +710,13 @@ export function ReconciliationView() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <Label className="text-xs font-bold text-muted-foreground uppercase">
+                          <Label className="text-xs font-bold text-muted-foreground uppercase whitespace-nowrap">
                             {t("reconciliation.year")}:
                           </Label>
                           <Select
                             value={selectedYear}
                             onValueChange={setSelectedYear}>
-                            <SelectTrigger className="h-8 w-[100px] text-xs font-bold">
+                            <SelectTrigger className="h-8 w-[90px] text-xs font-bold">
                               <SelectValue placeholder={t("reconciliation.year")} />
                             </SelectTrigger>
                             <SelectContent>
@@ -704,6 +726,24 @@ export function ReconciliationView() {
                                   {year}
                                 </SelectItem>
                               ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs font-bold text-muted-foreground uppercase whitespace-nowrap">
+                            {t("transactions.status")}:
+                          </Label>
+                          <Select
+                            value={statusFilter}
+                            onValueChange={(val: any) => setStatusFilter(val)}>
+                            <SelectTrigger className="h-8 w-[110px] text-xs font-bold">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">{t("common.all")}</SelectItem>
+                              <SelectItem value="paid">{t("common.paid")}</SelectItem>
+                              <SelectItem value="debt">{t("common.unpaid")}</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>

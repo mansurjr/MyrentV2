@@ -24,7 +24,7 @@ export function SectionsList() {
   const { data: rawData, isLoading } = sectionsHook.useGetSections();
 
   const handleExport = async () => {
-    const baseURL = import.meta.env.VITE_API_URL || "http://localhost:3020/api";
+    const baseURL = `${window.location.origin}/api`;
     const url = `${baseURL}/sections/export/excel`;
     
     try {

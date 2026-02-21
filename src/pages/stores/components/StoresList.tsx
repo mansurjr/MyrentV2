@@ -40,7 +40,7 @@ export function StoresList() {
       }
     });
 
-    const baseURL = import.meta.env.VITE_API_URL || "http://localhost:3020/api";
+    const baseURL = `${window.location.origin}/api`;
     const url = `${baseURL}/stores/export/excel?${queryParams.toString()}`;
     
     try {

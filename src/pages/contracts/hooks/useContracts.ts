@@ -130,16 +130,19 @@ export const useContracts = () => {
     },
   });
 
-  const getPaymentUrl = async (id: number, periodIds: string[]) => {
+  const getPaymentUrl = async (id: number, periodIds: string[], method?: string) => {
     const response = await baseApi.post<{ url: string }>(`/contracts/${id}/payment-url`, {
       periodIds,
+      method: method?.toUpperCase()
     });
     return response.data;
   };
 
   const automatePaymentRedirect = async (id: number, periodIds: string[]) => {
     try {
-      const response = await getPaymentUrl(id, periodIds);
+      const isMyRent = window.location.hostname.includes("myrent.uz");
+      const method = isMyRent ? 'PAYME' : 'CLICK';
+      const response = await getPaymentUrl(id, periodIds, method);
       if (response?.url) {
         window.open(response.url, '_blank');
       } else {
@@ -149,6 +152,11 @@ export const useContracts = () => {
       console.error("Payment redirection failed:", error);
       throw error;
     }
+  };
+
+  const getPaymentUrls = async (id: number, dto: IPaymentUrlsDto) => {
+    const response = await baseApi.post<IPaymentUrlsResponse>(`/contracts/${id}/payment-urls`, dto);
+    return response.data;
   };
 
   const updatePeriod = useMutation({
@@ -170,6 +178,7 @@ export const useContracts = () => {
     payContract,
     manualPayContract,
     getPaymentUrl,
+    getPaymentUrls,
     automatePaymentRedirect,
     updatePeriod,
   };

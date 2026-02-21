@@ -72,7 +72,7 @@ export function TransactionsList() {
       }
     });
 
-    const baseURL = import.meta.env.VITE_API_URL || "http://localhost:3020/api";
+    const baseURL = `${window.location.origin}/api`;
     const url = `${baseURL}/transactions/export/excel?${queryParams.toString()}`;
     
     try {

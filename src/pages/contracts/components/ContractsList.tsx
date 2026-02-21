@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { DataTable } from "@/components/DataTable";
 import { useContracts } from "../hooks/useContracts";
 import { columns } from "./columns";
@@ -32,7 +32,7 @@ export function ContractsList() {
   const { openSidebar, closeSidebar } = useSidebarStore();
 
   const contractsHook = useContracts();
-  const { data, isLoading } = contractsHook.useGetContracts({
+  const { data, isLoading, refetch: refetchContracts } = contractsHook.useGetContracts({
     page,
     limit: pageSize,
     search: debouncedSearch,
@@ -40,6 +40,18 @@ export function ContractsList() {
     paid: paymentStatus === "all" ? undefined : paymentStatus === "paid",
     paymentType: paymentType === "all" ? undefined : paymentType as 'ONLINE' | 'BANK',
   });
+  
+  // Reload data when tab becomes active
+  useEffect(() => {
+    const handleFocus = () => {
+      refetchContracts();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [refetchContracts]);
   
   const handleEdit = useCallback((contract: Contract) => {
     openSidebar({
@@ -85,7 +97,7 @@ export function ContractsList() {
       }
     });
 
-    const baseURL = import.meta.env.VITE_API_URL || "http://localhost:3020/api";
+    const baseURL = `${window.location.origin}/api`;
     const url = `${baseURL}/contracts/export/excel?${queryParams.toString()}`;
     
     try {

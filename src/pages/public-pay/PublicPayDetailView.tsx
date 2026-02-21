@@ -26,46 +26,59 @@ export default function PublicPayDetailView() {
   const [payingStatus, setPayingStatus] = useState<string>("idle");
   const [selectedPeriods, setSelectedPeriods] = useState<string[]>([]);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        if (mode === "contract" && contractId) {
-          const res = await getPublicContractDetail(Number(contractId));
-          setData(res);
-          const periods = res.pendingPeriods || res.paymentPeriods || [];
-          const unpaid = periods.filter((p: any) => p.status === 'PENDING' || !p.status || p.status === 'UNPAID');
-          if (unpaid.length > 0) {
-            setSelectedPeriods(unpaid.map((p: any) => p.id));
-          }
-        } else if (mode === "stall" && stallNumber) {
-          try {
-            const res = await getPublicStall(stallNumber, { date: date || undefined });
-            setData(Array.isArray(res) ? res[0] : res);
-          } catch (err) {
-            if (create) {
-              // Create mode: Search failed, but we want to initialize a mock record for payment creation
-              setData({
-                stall: { stallNumber: stallNumber },
-                payment: { date: date, status: 'UNPAID' },
-                isNew: true
-              });
-            } else {
-              throw err;
-            }
-          }
-        } else {
-          setError("Ma'lumotlar yetarli emas");
+  const fetchData = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      if (mode === "contract" && contractId) {
+        const res = await getPublicContractDetail(Number(contractId));
+        setData(res);
+        const periods = res.pendingPeriods || res.paymentPeriods || [];
+        const unpaid = periods.filter((p: any) => p.status === 'PENDING' || !p.status || p.status === 'UNPAID');
+        if (unpaid.length > 0) {
+          setSelectedPeriods(unpaid.map((p: any) => p.id));
         }
-      } catch (err: any) {
-        setError(err?.response?.data?.message || err.message || "Ma'lumotlarni yuklashda xatolik");
-      } finally {
-        setLoading(false);
+      } else if (mode === "stall" && stallNumber) {
+        try {
+          const res = await getPublicStall(stallNumber, { date: date || undefined });
+          setData(Array.isArray(res) ? res[0] : res);
+        } catch (err) {
+          if (create) {
+            // Create mode: Search failed, but we want to initialize a mock record for payment creation
+            setData({
+              stall: { stallNumber: stallNumber },
+              payment: { date: date, status: 'UNPAID' },
+              isNew: true
+            });
+          } else {
+            throw err;
+          }
+        }
+      } else {
+        setError("Ma'lumotlar yetarli emas");
       }
-    };
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err.message || "Ma'lumotlarni yuklashda xatolik");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, [contractId, mode, stallNumber, date, create]);
+
+  // Reload data when tab becomes active
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchData();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [contractId, mode, stallNumber, date, create]); 
 
   const togglePeriod = (id: string) => {
     setSelectedPeriods(prev => 
@@ -97,7 +110,7 @@ export default function PublicPayDetailView() {
       }
 
       if (url) {
-        window.location.assign(url);
+        window.open(url, '_blank');
       } else {
         throw new Error("To'lov havolasi olinmadi");
       }
@@ -262,10 +275,18 @@ export default function PublicPayDetailView() {
 
             {!isPaid && (
               <div className="grid gap-4 pt-4">
-                {(data.availableMethods || ["click", "payme"]).map((method: string) => {
-                  const m = method.toLowerCase();
-                  const isClick = m === "click";
-                  const isPayme = m === "payme";
+                {(data.availableMethods || ["click", "payme"])
+                  .filter((method: string) => {
+                    const m = method.toLowerCase();
+                    if (m === 'payme') {
+                      return window.location.hostname.includes("myrent.uz");
+                    }
+                    return true; // Keep Click and others
+                  })
+                  .map((method: string) => {
+                    const m = method.toLowerCase();
+                    const isClick = m === "click";
+                    const isPayme = m === "payme";
 
                   return (
                     <Button 
@@ -297,7 +318,7 @@ export default function PublicPayDetailView() {
                   asChild
                   className="w-full h-14 bg-linear-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-xl shadow-blue-500/20"
                 >
-                  <a href={data.paymentUrl}>
+                  <a href={data.paymentUrl} target="_blank" rel="noopener noreferrer">
                     <CreditCard className="mr-2 h-5 w-5" />
                     Barcha qarzlarni to'lash
                   </a>
