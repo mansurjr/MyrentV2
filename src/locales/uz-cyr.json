@@ -146,5 +146,41 @@
     "cash": "Банк орқали",
     "completed": "Тўланган",
     "status": "Ҳолати"
+  },
+  "dashboard": {
+    "welcome": "Хуш келибсиз!",
+    "description": "Бозор бошқаруви тизимининг умумий таҳлили.",
+    "general_indicators": "Умумий кўрсаткичлар",
+    "total_stores": "Жами дўконлар",
+    "stores_count_desc": "Рўйхатдаги дўконлар сони",
+    "total_stalls": "Жами расталар",
+    "stalls_count_desc": "Фаол расталар умумий сони",
+    "total_owners": "Жами тадбиркорлар",
+    "owners_count_desc": "Тизимдаги тадбиркорлар сони",
+    "active_contracts": "Фаол шартномалар",
+    "active_contracts_desc": "{{month}} ҳолатига кўра амалдаги шартномалар сони",
+    "archived": "Архивланган",
+    "archived_desc": "{{month}} гача архив статусдаги шартномалар",
+    "recent_transactions": "Охирги транзакциялар",
+    "recent_transactions_desc": "Тизимдаги сўнгги молиявий ҳаракатлар",
+    "no_transactions": "Ҳозирда транзакциялар мавжуд эмас",
+    "today_stall": "Бугун: {{number}}-раста",
+    "contract_store": "Шартнома: {{number}}-дўкон"
+  },
+  "statistics": {
+    "title": "Статистика",
+    "description": "Бозор тушумлари ва молиявий кўрсаткичлар таҳлили.",
+    "revenue_trend": "Тушумлар динамикаси",
+    "monthly_revenue": "Ойлик тушум",
+    "by_stall": "Расталар бўйича",
+    "by_store": "Дўконлар бўйича",
+    "top_stalls": "Энг кўп тушум қилган расталар",
+    "top_stores": "Энг кўп тушум қилган дўконлар",
+    "total_revenue": "Жами тушум",
+    "stall_revenue": "Расталардан тушум",
+    "store_revenue": "Дўконлардан тушум",
+    "no_data": "Маълумотлар мавжуд эмас",
+    "current_month": "Шу ой",
+    "last_year": "Ўтган йил"
   }
 }

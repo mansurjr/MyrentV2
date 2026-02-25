@@ -1,15 +1,6 @@
 import baseApi from "@/api";
 import { useQuery } from "@tanstack/react-query";
 
-interface StatisticsParams {
-  from?: string;
-  to?: string;
-  month?: number;
-  year?: number;
-  months?: number;
-  type?: "stall" | "store" | "all";
-  groupBy?: "daily" | "weekly" | "monthly";
-}
 
 export const useStatistics = () => {
   const getMonthlySeries = (params: { months?: number; type?: string }) => {
@@ -39,19 +30,8 @@ export const useStatistics = () => {
     });
   };
 
-  const getTotals = (params: StatisticsParams) => {
-    return useQuery({
-      queryKey: ["statistics", "totals", params],
-      queryFn: async () => {
-        const { data } = await baseApi.get("/statistics/totals", { params });
-        return data;
-      },
-    });
-  };
-
   return {
     getMonthlySeries,
     getRevenueByEntity,
-    getTotals,
   };
 };

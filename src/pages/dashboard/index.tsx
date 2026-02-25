@@ -21,13 +21,16 @@ import {
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { uz } from "date-fns/locale";
+import { uz, uzCyrl } from "date-fns/locale";
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { useTransactions } from "../transactions/hooks/useTransactions";
-import { useStatistics } from "../statistics/hooks/useStatistics";
+import { useStores } from "../stores/hooks/useStores";
+import { useStalls } from "../stalls/hooks/useStalls";
+import { useOwners } from "../owners/hooks/useOwners";
+import { useContracts } from "../contracts/hooks/useContracts";
 
-const StatCard = ({ title, value, description, icon: Icon, color }: any) => (
+const StatCard = ({ title, value, description, icon: Icon, color, isLoading }: any) => (
   <Card className="relative overflow-hidden border-border/50 bg-card border-none shadow-sm group hover:shadow-md transition-all duration-300">
     <div className={cn("absolute inset-0 opacity-[0.03] transition-opacity group-hover:opacity-[0.05]", color)} />
     <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 relative z-10">
@@ -45,7 +48,11 @@ const StatCard = ({ title, value, description, icon: Icon, color }: any) => (
     <CardContent className="relative z-10">
       <div className="flex items-baseline justify-between gap-2">
         <div className="text-3xl font-bold tracking-tighter text-foreground">
-          {value}
+          {isLoading ? (
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/20" />
+          ) : (
+            value
+          )}
         </div>
       </div>
       <p className="text-[11px] text-muted-foreground/70 mt-2 font-medium leading-tight">
@@ -56,59 +63,81 @@ const StatCard = ({ title, value, description, icon: Icon, color }: any) => (
 );
 
 const DashboardPage = () => {
-  const { t } = useTranslation();
+  const { t, i18n: i18nInstance } = useTranslation();
   const navigate = useNavigate();
   const { useGetTransactions } = useTransactions();
   const transactionsQuery = useGetTransactions({ page: 1, limit: 8 });
+  const isCyr = i18nInstance.language === 'uz_cyr';
+  const dateLocale = isCyr ? uzCyrl : uz;
 
   const currentMonth = useMemo(
-    () => format(new Date(), "MMMM", { locale: uz }),
-    [],
+    () => format(new Date(), "MMMM", { locale: dateLocale }),
+    [dateLocale],
   );
 
-  const { getTotals } = useStatistics();
-  const totalsQuery = getTotals({});
+  const { useGetStores } = useStores();
+  const { useGetStalls } = useStalls();
+  const { useGetOwners } = useOwners();
+  const { useGetContracts } = useContracts();
+
+  const storesQuery = useGetStores({ limit: 1 });
+  const stallsQuery = useGetStalls({ limit: 1 });
+  const ownersQuery = useGetOwners({ limit: 1 });
+  const activeContractsQuery = useGetContracts({ limit: 1, isActive: true });
+  const archivedContractsQuery = useGetContracts({ limit: 1, isActive: false });
 
   const stats = useMemo(() => {
-    const data = totalsQuery.data || {};
     return [
       {
         title: t("dashboard.total_stores"),
-        value: String(data.stores || 0),
+        value: String(storesQuery.data?.pagination?.total || 0),
         description: t("dashboard.stores_count_desc"),
         icon: Store,
         color: "bg-blue-600",
+        isLoading: storesQuery.isLoading,
       },
       {
         title: t("dashboard.total_stalls"),
-        value: String(data.stalls || 0),
+        value: String(stallsQuery.data?.pagination?.total || 0),
         description: t("dashboard.stalls_count_desc"),
         icon: LayoutGrid,
         color: "bg-orange-500",
+        isLoading: stallsQuery.isLoading,
       },
       {
         title: t("dashboard.total_owners"),
-        value: String(data.owners || 0),
+        value: String(ownersQuery.data?.pagination?.total || 0),
         description: t("dashboard.owners_count_desc"),
         icon: Users,
         color: "bg-indigo-600",
+        isLoading: ownersQuery.isLoading,
       },
       {
         title: t("dashboard.active_contracts"),
-        value: String(data.contracts || 0),
+        value: String(activeContractsQuery.data?.pagination?.total || 0),
         description: t("dashboard.active_contracts_desc", { month: currentMonth }),
         icon: FileText,
         color: "bg-emerald-600",
+        isLoading: activeContractsQuery.isLoading,
       },
       {
         title: t("dashboard.archived"),
-        value: String(data.archived || 0),
+        value: String(archivedContractsQuery.data?.pagination?.total || 0),
         description: t("dashboard.archived_desc", { month: currentMonth }),
         icon: Archive,
         color: "bg-rose-500",
+        isLoading: archivedContractsQuery.isLoading,
       },
     ];
-  }, [totalsQuery.data, t, currentMonth]);
+  }, [
+    storesQuery.data, storesQuery.isLoading,
+    stallsQuery.data, stallsQuery.isLoading,
+    ownersQuery.data, ownersQuery.isLoading,
+    activeContractsQuery.data, activeContractsQuery.isLoading,
+    archivedContractsQuery.data, archivedContractsQuery.isLoading,
+    t, 
+    currentMonth
+  ]);
 
   return (
     <main className="p-6 space-y-8 w-full mx-auto">
@@ -130,7 +159,7 @@ const DashboardPage = () => {
               {t("common.today")}
             </p>
             <p className="text-xs font-bold text-foreground">
-              {format(new Date(), "d MMMM, yyyy", { locale: uz })}
+              {format(new Date(), "d MMMM, yyyy", { locale: dateLocale })}
             </p>
           </div>
         </div>
@@ -210,7 +239,7 @@ const DashboardPage = () => {
                             : t("dashboard.contract_store", { number: tx.contract?.store?.storeNumber || tx.contractId })}
                         </p>
                         <p className="text-[10px] text-muted-foreground/70 flex items-center gap-1.5 mt-0.5">
-                          <span className="font-medium">{format(new Date(tx.createdAt), "d MMM, HH:mm", { locale: uz })}</span>
+                          <span className="font-medium">{format(new Date(tx.createdAt), "d MMM, HH:mm", { locale: dateLocale })}</span>
                           <span className="opacity-30">•</span>
                           <span className="bg-muted px-1 rounded uppercase tracking-tighter text-[9px]">{tx.paymentMethod}</span>
                         </p>
