@@ -11,7 +11,7 @@ export interface IAttendanceOptions {
 
 export interface ICreateAttendanceDto {
   date: string;
-  stallId: number;
+  stallId: string;
   status: 'PAID' | 'UNPAID';
   amount?: number;
 }

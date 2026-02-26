@@ -53,7 +53,7 @@ export function AttendancesList() {
   const handleCreateAttendance = async (stallId: string | number, amount: number) => {
     try {
       await createAttendance.mutateAsync({
-        stallId: Number(stallId),
+        stallId: stallId,
         date: dateStr,
         status: "UNPAID",
         amount,
