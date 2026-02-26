@@ -28,6 +28,8 @@ export const useAttendances = () => {
         });
         return response.data;
       },
+      refetchOnReconnect : true,
+      refetchOnWindowFocus : "always",
     });
 
   const createAttendance = useMutation({
