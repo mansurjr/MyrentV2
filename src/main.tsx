@@ -8,7 +8,7 @@ import { TanstackProvider } from "./providers/TanstackProvider.tsx"
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <TanstackProvider>
+    <TanstackProvider >
       <App />
     </TanstackProvider>
   </StrictMode>
