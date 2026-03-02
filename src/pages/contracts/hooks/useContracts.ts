@@ -83,6 +83,7 @@ export const useContracts = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contracts"] });
       queryClient.invalidateQueries({ queryKey: ["stores"] });
+      queryClient.invalidateQueries({ queryKey: ["statistics", "reconciliation-contracts"] });
     },
   });
 
@@ -94,6 +95,7 @@ export const useContracts = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contracts"] });
       queryClient.invalidateQueries({ queryKey: ["stores"] });
+      queryClient.invalidateQueries({ queryKey: ["statistics", "reconciliation-contracts"] });
     },
   });
 
@@ -105,6 +107,7 @@ export const useContracts = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contracts"] });
       queryClient.invalidateQueries({ queryKey: ["stores"] });
+      queryClient.invalidateQueries({ queryKey: ["statistics", "reconciliation-contracts"] });
     },
   });
 
@@ -116,6 +119,7 @@ export const useContracts = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contracts"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["statistics", "reconciliation-contracts"] });
     },
   });
 
@@ -127,6 +131,7 @@ export const useContracts = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contracts"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["statistics", "reconciliation-contracts"] });
     },
   });
 
@@ -166,6 +171,7 @@ export const useContracts = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["statistics", "reconciliation-contracts"] });
     },
   });
 

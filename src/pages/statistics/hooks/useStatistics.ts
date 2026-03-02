@@ -1,6 +1,33 @@
 import baseApi from "@/api";
 import { useQuery } from "@tanstack/react-query";
 
+export interface IReconciliationContractsParams {
+  ownerId?: number;
+  storeId?: string;
+  contractId?: number;
+  isActive?: boolean;
+  paymentType?: "ONLINE" | "BANK";
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface IReconciliationSummaryItem {
+  id?: number;
+  contractId?: number;
+  unpaid?: number;
+  debt?: number;
+  debtAmount?: number;
+  unpaidMonths?: number;
+  debtMonths?: number;
+  [key: string]: unknown;
+}
+
+export interface IReconciliationContractsResponse {
+  totalDebt?: number;
+  summary?: IReconciliationSummaryItem[];
+  [key: string]: unknown;
+}
 
 export const useStatistics = () => {
   const getMonthlySeries = (params: { months?: number; type?: string }) => {
@@ -30,8 +57,26 @@ export const useStatistics = () => {
     });
   };
 
+  const getReconciliationContracts = (
+    params: IReconciliationContractsParams = {},
+    options: { enabled?: boolean } = {},
+  ) => {
+    return useQuery({
+      queryKey: ["statistics", "reconciliation-contracts", params],
+      queryFn: async () => {
+        const { data } = await baseApi.get<IReconciliationContractsResponse>(
+          "/statistics/reconciliation/contracts",
+          { params },
+        );
+        return data;
+      },
+      enabled: options.enabled ?? true,
+    });
+  };
+
   return {
     getMonthlySeries,
     getRevenueByEntity,
+    getReconciliationContracts,
   };
 };

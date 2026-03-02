@@ -12,6 +12,7 @@ import { ContractForm } from "./ContractForm";
 import { useTranslation } from "react-i18next";
 import { downloadExcelWithAuth } from "@/lib/excel-export";
 import { format } from "date-fns";
+import { useStatistics } from "@/pages/statistics/hooks/useStatistics";
 import {
   Select,
   SelectContent,
@@ -22,6 +23,7 @@ import {
 
 export function ContractsList() {
   const { t } = useTranslation();
+  const { getReconciliationContracts } = useStatistics();
   const [search, setSearch] = useState("");
   const [paymentStatus, setPaymentStatus] = useState<string>("all");
   const [paymentType, setPaymentType] = useState<string>("all");
@@ -40,6 +42,33 @@ export function ContractsList() {
     paid: paymentStatus === "all" ? undefined : paymentStatus === "paid",
     paymentType: paymentType === "all" ? undefined : paymentType as 'ONLINE' | 'BANK',
   });
+  const reconciliationContractsQuery = getReconciliationContracts({
+    page,
+    limit: pageSize,
+    search: debouncedSearch,
+    isActive: true,
+    paymentType: paymentType === "all" ? undefined : paymentType as "ONLINE" | "BANK",
+  });
+
+  const debtByContractId = useMemo(() => {
+    const result: Record<number, number> = {};
+    const summary = reconciliationContractsQuery.data?.summary;
+
+    if (!Array.isArray(summary)) {
+      return result;
+    }
+
+    for (const item of summary) {
+      const rawContractId = item.contractId ?? item.id;
+      const contractId = Number(rawContractId);
+      if (!Number.isFinite(contractId)) continue;
+
+      const debt = Number(item.unpaid ?? item.debtAmount ?? item.debt ?? 0) || 0;
+      result[contractId] = debt;
+    }
+
+    return result;
+  }, [reconciliationContractsQuery.data]);
   
   // Reload data when tab becomes active
   useEffect(() => {
@@ -80,7 +109,10 @@ export function ContractsList() {
     });
   }, [openSidebar, t, closeSidebar]);
 
-  const contractColumns = useMemo(() => columns(handleEdit), [handleEdit]);
+  const contractColumns = useMemo(
+    () => columns(handleEdit, false, debtByContractId),
+    [handleEdit, debtByContractId],
+  );
 
   const handleExport = async () => {
     const filters = {

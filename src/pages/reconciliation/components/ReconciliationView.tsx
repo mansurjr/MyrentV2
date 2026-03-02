@@ -21,6 +21,7 @@ import {
 import { useStores } from "../../stores/hooks/useStores";
 import { useOwners } from "../../owners/hooks/useOwners";
 import { useContracts } from "../../contracts/hooks/useContracts";
+import { useStatistics } from "../../statistics/hooks/useStatistics";
 import { useDebounce } from "@/hooks/useDebounce";
 import { ManualPayDialog } from "../../contracts/components/ManualPayDialog";
 import {
@@ -71,11 +72,26 @@ import {
 
 type FilterType = "store" | "owner";
 
+const toNumber = (value: unknown, fallback = 0) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+};
+
+const getSummaryContractId = (item: Record<string, unknown>) =>
+  toNumber(item.contractId ?? item.id, NaN);
+
+const getSummaryUnpaid = (item: Record<string, unknown>) =>
+  toNumber(item.unpaid ?? item.debtAmount ?? item.debt, 0);
+
+const getSummaryUnpaidMonths = (item: Record<string, unknown>) =>
+  toNumber(item.unpaidMonths ?? item.debtMonths ?? item.pendingMonths ?? item.pendingCount, 0);
+
 export function ReconciliationView() {
   const { t } = useTranslation();
   const { useGetStores } = useStores();
   const { useGetOwners } = useOwners();
   const { useGetContracts, payContract, automatePaymentRedirect, updatePeriod } = useContracts();
+  const { getReconciliationContracts } = useStatistics();
 
   const [filterType, setFilterType] = useState<FilterType>("store");
   const [searchTerm, setSearchTerm] = useState("");
@@ -116,8 +132,21 @@ export function ReconciliationView() {
   const { data: contractsData, isLoading: contractsLoading, refetch: refetchContracts } = useGetContracts({
     storeId: filterType === "store" ? selectedStoreId || undefined : undefined,
     ownerId: filterType === "owner" ? selectedOwnerId || undefined : undefined,
-    isActive: showInactive ? undefined : true,
+    isActive: showInactive ? false : true,
   });
+
+  const reconciliationContractsQuery = getReconciliationContracts(
+    {
+      storeId: filterType === "store" ? selectedStoreId || undefined : undefined,
+      ownerId: filterType === "owner" ? selectedOwnerId || undefined : undefined,
+      isActive: showInactive ? false : true,
+    },
+    {
+      enabled:
+        (filterType === "store" && !!selectedStoreId) ||
+        (filterType === "owner" && !!selectedOwnerId),
+    },
+  );
 
   // Reload data when tab becomes active
   useEffect(() => {
@@ -145,6 +174,29 @@ export function ReconciliationView() {
     () => contractsData?.data?.find((c) => c.id === selectedContractId),
     [contractsData, selectedContractId],
   );
+
+  const reconciliationSummaryByContractId = useMemo(() => {
+    const map = new Map<number, { unpaidAmount: number; unpaidMonths: number }>();
+    const summary = reconciliationContractsQuery.data?.summary;
+
+    if (!Array.isArray(summary)) {
+      return map;
+    }
+
+    for (const rawItem of summary) {
+      if (!rawItem || typeof rawItem !== "object") continue;
+      const item = rawItem as Record<string, unknown>;
+      const contractId = getSummaryContractId(item);
+      if (!Number.isFinite(contractId)) continue;
+
+      map.set(contractId, {
+        unpaidAmount: getSummaryUnpaid(item),
+        unpaidMonths: getSummaryUnpaidMonths(item),
+      });
+    }
+
+    return map;
+  }, [reconciliationContractsQuery.data]);
 
   const paymentHistory = useMemo(() => {
     if (!selectedContract || !selectedContract.paymentPeriods) return [];
@@ -219,18 +271,17 @@ export function ReconciliationView() {
     const expiryDate = selectedContract.expiryDate
       ? parseISO(selectedContract.expiryDate)
       : null;
+    const selectedSummary = reconciliationSummaryByContractId.get(selectedContract.id);
 
-    // paymentHistory is already filtered to exclude future months
-    // and mapped to include isPaid/isPast flags
     const totalPaidMonths = paymentHistory.filter((m) => m.isPaid).length;
-    const totalUnpaidPastMonths = paymentHistory.filter((m) => !m.isPaid).length;
-    
-    const totalDebtAmount = paymentHistory
-      .filter((m) => !m.isPaid)
-      .reduce((sum, m) => {
-        const amount = editedAmounts[m.id!] || m.amount || selectedContract.shopMonthlyFee || 0;
-        return sum + Number(amount);
-      }, 0);
+    const totalUnpaidPastMonths =
+      selectedSummary?.unpaidMonths ?? 0;
+    const totalDebtAmount =
+      selectedSummary?.unpaidAmount ?? 0;
+    const totalDebt = toNumber(
+      reconciliationContractsQuery.data?.totalDebt,
+      totalDebtAmount,
+    );
 
     return {
       monthsRemaining: expiryDate
@@ -238,9 +289,10 @@ export function ReconciliationView() {
         : null,
       totalPaidMonths,
       totalUnpaidPastMonths,
-      totalDebtAmount
+      totalDebtAmount,
+      totalDebt,
     };
-  }, [selectedContract, paymentHistory, editedAmounts]);
+  }, [selectedContract, paymentHistory, reconciliationSummaryByContractId, reconciliationContractsQuery.data]);
 
   const handleFilterTypeChange = (type: FilterType) => {
     setFilterType(type);
@@ -492,7 +544,12 @@ export function ReconciliationView() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {contractsData?.data?.map((contract) => (
+                      {contractsData?.data?.map((contract) => {
+                        const summary = reconciliationSummaryByContractId.get(contract.id);
+                        const contractDebtAmount =
+                          summary?.unpaidAmount ?? 0;
+
+                        return (
                         <button
                           key={contract.id}
                           onClick={() => {
@@ -522,17 +579,13 @@ export function ReconciliationView() {
                               № {contract.certificateNumber || t("common.unknown")}
                               <Badge
                                   variant={
-                                    contract.isPaidCurrentMonth
-                                      ? "default"
-                                      : "destructive"
+                                    contractDebtAmount > 0 ? "destructive" : "default"
                                   }
                                   className={cn(
                                     "text-[10px] h-5 px-1.5 uppercase",
-                                    contract.isPaidCurrentMonth && "bg-emerald-500 hover:bg-emerald-600 border-transparent"
+                                    contractDebtAmount <= 0 && "bg-emerald-500 hover:bg-emerald-600 border-transparent"
                                   )}>
-                                {contract.isPaidCurrentMonth
-                                  ? t("common.paid")
-                                  : t("common.unpaid")}
+                                {contractDebtAmount > 0 ? t("common.unpaid") : t("common.paid")}
                               </Badge>
                               {!contract.isActive && (
                                 <Badge
@@ -563,7 +616,7 @@ export function ReconciliationView() {
                             </p>
                           </div>
                         </button>
-                      ))}
+                      )})}
                     </div>
                   )}
                 </CardContent>
@@ -633,8 +686,9 @@ export function ReconciliationView() {
                           </div>
                         </div>
                         <div className="space-y-3 pt-2">
-                          {stats!.totalUnpaidPastMonths &&
-                            stats!.totalUnpaidPastMonths > 0 ? (
+                          {stats!.totalDebtAmount > 0 &&
+                          (selectedContract.paymentType === "BANK" ||
+                            selectedContract.paymentPeriods?.some((p) => p.status === "PENDING")) ? (
                             <Button
                                 onClick={async () => {
                                 if (!selectedContract) return;
@@ -672,10 +726,18 @@ export function ReconciliationView() {
                             </Button>
                           ) : null}
 
-                          {stats!.totalDebtAmount > 0 && (
-                            <div className="flex items-center gap-2 justify-center text-[10px] font-bold text-red-600 uppercase">
-                              <AlertCircle className="h-3 w-3" />
-                              {new Intl.NumberFormat("uz-UZ").format(stats!.totalDebtAmount)} UZS
+                          {(stats!.totalDebtAmount > 0 || stats!.totalDebt > 0) && (
+                            <div className="space-y-1">
+                              {stats!.totalDebtAmount > 0 && (
+                                <div className="flex items-center gap-2 justify-center text-[10px] font-bold text-red-600 uppercase">
+                                  <AlertCircle className="h-3 w-3" />
+                                  {new Intl.NumberFormat("uz-UZ").format(stats!.totalDebtAmount)} UZS
+                                </div>
+                              )}
+                              <div className="flex items-center gap-2 justify-center text-[10px] font-bold text-primary uppercase">
+                                <span>Jami:</span>
+                                {new Intl.NumberFormat("uz-UZ").format(stats!.totalDebt)} UZS
+                              </div>
                             </div>
                           )}
                         </div>

@@ -37,6 +37,10 @@ interface ActionCellProps {
   isArchived: boolean;
 }
 
+interface ContractDebtById {
+  [contractId: number]: number;
+}
+
 const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
   const { t } = useTranslation();
   const { deleteContract, automatePaymentRedirect } = useContracts();
@@ -176,7 +180,11 @@ const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
   );
 };
 
-export const columns = (onEdit: (contract: Contract) => void, isArchived: boolean = false): ColumnDef<Contract>[] => [
+export const columns = (
+  onEdit: (contract: Contract) => void,
+  isArchived: boolean = false,
+  debtByContractId: ContractDebtById = {},
+): ColumnDef<Contract>[] => [
   {
     accessorKey: "id",
     header: "ID",
@@ -241,15 +249,16 @@ export const columns = (onEdit: (contract: Contract) => void, isArchived: boolea
     header: "To'lov holati",
     cell: ({ row }) => {
       const contract = row.original;
-      const paymentPeriods = contract.paymentPeriods || [];
+      const debtAmount =
+        Number(
+          debtByContractId[contract.id] ??
+            0,
+        ) || 0;
       
-      const pendingPeriods = paymentPeriods.filter(p => p.status === 'PENDING');
-      const hasDebt = pendingPeriods.length > 0;
-      
-      if (hasDebt) {
+      if (debtAmount > 0) {
         return (
           <Badge variant="destructive" className="font-semibold shadow-sm">
-            Qarzdorlik ({pendingPeriods.length} oy)
+            Qarzdorlik ({new Intl.NumberFormat("uz-UZ").format(debtAmount)} UZS)
           </Badge>
         );
       }

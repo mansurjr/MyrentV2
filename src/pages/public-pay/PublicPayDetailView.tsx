@@ -25,10 +25,12 @@ export default function PublicPayDetailView() {
   const [error, setError] = useState("");
   const [payingStatus, setPayingStatus] = useState<string>("idle");
   const [selectedPeriods, setSelectedPeriods] = useState<string[]>([]);
+  const [reconciliationDebtAmount, setReconciliationDebtAmount] = useState<number | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
     setError("");
+    setReconciliationDebtAmount(null);
     try {
       if (mode === "contract" && contractId) {
         const res = await getPublicContractDetail(Number(contractId));
@@ -37,6 +39,29 @@ export default function PublicPayDetailView() {
         const unpaid = periods.filter((p: any) => p.status === 'PENDING' || !p.status || p.status === 'UNPAID');
         if (unpaid.length > 0) {
           setSelectedPeriods(unpaid.map((p: any) => p.id));
+        }
+
+        try {
+          const reconciliation = await baseApi.get("/statistics/reconciliation/contracts", {
+            params: { contractId: Number(contractId), isActive: true },
+          });
+          const summary = Array.isArray(reconciliation.data?.summary)
+            ? reconciliation.data.summary
+            : [];
+          const contractSummary = summary.find((item: any) => {
+            const id = Number(item?.contractId ?? item?.id);
+            return Number.isFinite(id) && id === Number(contractId);
+          });
+          const debt = Number(
+            contractSummary?.unpaid ??
+              contractSummary?.debtAmount ??
+              contractSummary?.debt,
+          );
+          if (Number.isFinite(debt)) {
+            setReconciliationDebtAmount(debt);
+          }
+        } catch {
+          setReconciliationDebtAmount(null);
         }
       } else if (mode === "stall" && stallNumber) {
         try {
@@ -153,15 +178,25 @@ export default function PublicPayDetailView() {
   const pendingPeriods = allPeriods.filter((p: any) => 
     p.status === 'PENDING' || p.status === 'UNPAID' || !p.status || p.isPaid === false
   );
+  const backendDebtAmount = Number(
+    reconciliationDebtAmount ?? data.paymentSnapshot?.debtAmount ?? 0,
+  );
   
   const amountToPay = isContract 
     ? (pendingPeriods.length > 0 
-        ? pendingPeriods.filter((p: any) => selectedPeriods.includes(p.id)).reduce((sum: number, p: any) => sum + Number(p.amount), 0)
-        : Number(data.paymentSnapshot?.debtAmount || 0))
+        ? (() => {
+            const selectedAmount = pendingPeriods
+              .filter((p: any) => selectedPeriods.includes(p.id))
+              .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+            return selectedPeriods.length === pendingPeriods.length
+              ? backendDebtAmount || selectedAmount
+              : selectedAmount;
+          })()
+        : backendDebtAmount)
     : Number(data.payment?.amount || data.stall?.dailyFee || 0);
 
   const isPaid = isContract 
-    ? (pendingPeriods.length === 0 && Number(data.paymentSnapshot?.debtAmount || 0) === 0)
+    ? (pendingPeriods.length === 0 && backendDebtAmount === 0)
     : data.payment?.status === 'PAID';
 
   return (
