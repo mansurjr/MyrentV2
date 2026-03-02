@@ -25,6 +25,31 @@ import {
 } from "recharts";
 import { useStatistics } from "./hooks/useStatistics";
 
+const toNumber = (value: unknown, fallback = 0) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+};
+
+const firstNumber = (source: Record<string, unknown>, keys: string[], fallback = 0) => {
+  for (const key of keys) {
+    if (key in source) {
+      const value = toNumber(source[key], NaN);
+      if (Number.isFinite(value)) return value;
+    }
+  }
+  return fallback;
+};
+
+const firstCount = (source: Record<string, unknown>, keys: string[], fallback = 0) => {
+  for (const key of keys) {
+    if (key in source) {
+      const value = toNumber(source[key], NaN);
+      if (Number.isFinite(value)) return value;
+    }
+  }
+  return fallback;
+};
+
 const StatCard = ({ title, value, description, icon: Icon, color, className }: any) => (
   <Card className={cn("relative overflow-hidden border-border/50 bg-card border-none shadow-sm group hover:shadow-md transition-all duration-300", className)}>
     <div className={cn("absolute inset-0 opacity-[0.03] transition-opacity group-hover:opacity-[0.05]", color)} />
@@ -79,10 +104,29 @@ const StatisticsPage = () => {
 
   const stats = useMemo(() => {
     if (!byEntityQuery.data) return [];
-    
-    const storeTotal = byEntityQuery.data.stores.reduce((sum: number, item: any) => sum + item.value, 0);
-    const stallTotal = byEntityQuery.data.stalls.reduce((sum: number, item: any) => sum + item.value, 0);
-    const total = storeTotal + stallTotal;
+
+    const payload = byEntityQuery.data as Record<string, unknown>;
+    const stores = Array.isArray(payload.stores) ? payload.stores : [];
+    const stalls = Array.isArray(payload.stalls) ? payload.stalls : [];
+
+    const storeTotal = firstNumber(
+      payload,
+      ["storeTotal", "storesTotal", "storeRevenue", "storesRevenue"],
+      0,
+    );
+    const stallTotal = firstNumber(
+      payload,
+      ["stallTotal", "stallsTotal", "stallRevenue", "stallsRevenue"],
+      0,
+    );
+    const total = firstNumber(
+      payload,
+      ["total", "totalRevenue", "totalAmount", "overallTotal"],
+      0,
+    );
+
+    const storeCount = firstCount(payload, ["storeCount", "storesCount"], stores.length);
+    const stallCount = firstCount(payload, ["stallCount", "stallsCount"], stalls.length);
 
     return [
         {
@@ -95,14 +139,14 @@ const StatisticsPage = () => {
         {
             title: t("statistics.store_revenue"),
             value: formatCurrency(storeTotal),
-            description: `${byEntityQuery.data.stores.length} ${t("nav.stores")}`,
+            description: `${storeCount} ${t("nav.stores")}`,
             icon: Store,
             color: "bg-emerald-500",
         },
         {
             title: t("statistics.stall_revenue"),
             value: formatCurrency(stallTotal),
-            description: `${byEntityQuery.data.stalls.length} ${t("nav.stalls")}`,
+            description: `${stallCount} ${t("nav.stalls")}`,
             icon: LayoutGrid,
             color: "bg-orange-500",
         }

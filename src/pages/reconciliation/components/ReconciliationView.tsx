@@ -86,6 +86,9 @@ const getSummaryUnpaid = (item: Record<string, unknown>) =>
 const getSummaryUnpaidMonths = (item: Record<string, unknown>) =>
   toNumber(item.unpaidMonths ?? item.debtMonths ?? item.pendingMonths ?? item.pendingCount, 0);
 
+const getSummaryPaidMonths = (item: Record<string, unknown>) =>
+  toNumber(item.paidMonths ?? item.paidCount ?? item.paid, 0);
+
 export function ReconciliationView() {
   const { t } = useTranslation();
   const { useGetStores } = useStores();
@@ -176,7 +179,7 @@ export function ReconciliationView() {
   );
 
   const reconciliationSummaryByContractId = useMemo(() => {
-    const map = new Map<number, { unpaidAmount: number; unpaidMonths: number }>();
+    const map = new Map<number, { unpaidAmount: number; unpaidMonths: number; paidMonths: number }>();
     const summary = reconciliationContractsQuery.data?.summary;
 
     if (!Array.isArray(summary)) {
@@ -192,6 +195,7 @@ export function ReconciliationView() {
       map.set(contractId, {
         unpaidAmount: getSummaryUnpaid(item),
         unpaidMonths: getSummaryUnpaidMonths(item),
+        paidMonths: getSummaryPaidMonths(item),
       });
     }
 
@@ -273,7 +277,8 @@ export function ReconciliationView() {
       : null;
     const selectedSummary = reconciliationSummaryByContractId.get(selectedContract.id);
 
-    const totalPaidMonths = paymentHistory.filter((m) => m.isPaid).length;
+    const totalPaidMonths =
+      selectedSummary?.paidMonths ?? 0;
     const totalUnpaidPastMonths =
       selectedSummary?.unpaidMonths ?? 0;
     const totalDebtAmount =

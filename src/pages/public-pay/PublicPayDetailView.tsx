@@ -183,16 +183,7 @@ export default function PublicPayDetailView() {
   );
   
   const amountToPay = isContract 
-    ? (pendingPeriods.length > 0 
-        ? (() => {
-            const selectedAmount = pendingPeriods
-              .filter((p: any) => selectedPeriods.includes(p.id))
-              .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
-            return selectedPeriods.length === pendingPeriods.length
-              ? backendDebtAmount || selectedAmount
-              : selectedAmount;
-          })()
-        : backendDebtAmount)
+    ? backendDebtAmount
     : Number(data.payment?.amount || data.stall?.dailyFee || 0);
 
   const isPaid = isContract 

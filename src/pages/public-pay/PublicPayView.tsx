@@ -25,6 +25,17 @@ export default function PublicPayView() {
   const [error, setError] = useState("");
   const resultsRef = useRef<HTMLDivElement>(null);
 
+  const getEntryDebtAmount = (entry: any) => {
+    const value = Number(
+      entry?.unpaid ??
+      entry?.debtAmount ??
+      entry?.debt ??
+      entry?.paymentSnapshot?.debtAmount ??
+      0,
+    );
+    return Number.isFinite(value) ? value : 0;
+  };
+
   const handleSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setLoading(true);
@@ -266,9 +277,9 @@ export default function PublicPayView() {
                             ? (entry.owner?.fullName || "Tadbirkor ma'lumoti kiritilmagan")
                             : `Sana: ${formatTashkentDate(entry.payment?.date || date)}`}
                           
-                          {mode === "store" && (entry.pendingPeriods?.length > 0) && (
+                          {mode === "store" && getEntryDebtAmount(entry) > 0 && (
                             <Badge variant="destructive" className="ml-2 h-5 px-2 text-[10px] font-bold">
-                              Qarzdorlik: {new Intl.NumberFormat("uz-UZ").format(entry.pendingPeriods.reduce((sum: number, p: any) => sum + Number(p.amount), 0))} UZS
+                              Qarzdorlik: {new Intl.NumberFormat("uz-UZ").format(getEntryDebtAmount(entry))} UZS
                             </Badge>
                           )}
                         </p>
