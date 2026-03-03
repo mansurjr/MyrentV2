@@ -4,14 +4,15 @@ import type { Attendance, AttendanceListResponse } from "../../../types/api-resp
 
 export interface IAttendanceOptions {
   date?: string;
-  stallId?: number;
+  stallId?: string | number;
   page?: number;
   limit?: number;
+  enabled?: boolean;
 }
 
 export interface ICreateAttendanceDto {
   date: string;
-  stallId: string;
+  stallId: string | number;
   status: 'PAID' | 'UNPAID';
   amount?: number;
 }
@@ -23,11 +24,13 @@ export const useAttendances = () => {
     useQuery({
       queryKey: ["attendances", options],
       queryFn: async () => {
+        const { enabled, ...params } = options;
         const response = await baseApi.get<AttendanceListResponse>("/attendances", {
-          params: options,
+          params,
         });
         return response.data;
       },
+      enabled: options.enabled !== false,
       refetchOnReconnect : true,
       refetchOnWindowFocus : "always",
     });

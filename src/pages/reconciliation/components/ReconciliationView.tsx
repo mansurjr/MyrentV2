@@ -17,12 +17,16 @@ import {
   AlertCircle,
   ArrowRight,
   Pencil,
+  LayoutGrid,
 } from "lucide-react";
 import { useStores } from "../../stores/hooks/useStores";
 import { useOwners } from "../../owners/hooks/useOwners";
 import { useContracts } from "../../contracts/hooks/useContracts";
 import { useStatistics } from "../../statistics/hooks/useStatistics";
 import { useDebounce } from "@/hooks/useDebounce";
+import baseApi from "@/api";
+import { useStalls } from "../../stalls/hooks/useStalls";
+import { useAttendances } from "../../attendances/hooks/useAttendances";
 import { ManualPayDialog } from "../../contracts/components/ManualPayDialog";
 import {
   Card,
@@ -70,7 +74,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
-type FilterType = "store" | "owner";
+type FilterType = "store" | "owner" | "stall";
 
 const toNumber = (value: unknown, fallback = 0) => {
   const numeric = Number(value);
@@ -100,6 +104,7 @@ export function ReconciliationView() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [selectedOwnerId, setSelectedOwnerId] = useState<number | null>(null);
+  const [selectedStallId, setSelectedStallId] = useState<string | null>(null);
   const [selectedContractId, setSelectedContractId] = useState<number | null>(
     null,
   );
@@ -124,6 +129,19 @@ export function ReconciliationView() {
   const { data: storesData, isLoading: storesLoading } = useGetStores({
     search: filterType === "store" ? debouncedSearch : "",
     limit: 100,
+  });
+
+  const { useGetStalls } = useStalls();
+  const { data: stallsData, isLoading: stallsLoading } = useGetStalls({
+    search: filterType === "stall" ? debouncedSearch : "",
+    limit: 100,
+  });
+
+  const { useGetAttendances } = useAttendances();
+  const { data: attendancesData, isLoading: attendancesLoading } = useGetAttendances({
+    stallId: selectedStallId || undefined,
+    limit: 1000,
+    enabled: filterType === "stall" && !!selectedStallId
   });
 
   const { data: ownersData, isLoading: ownersLoading } = useGetOwners({
@@ -171,6 +189,11 @@ export function ReconciliationView() {
   const selectedOwner = useMemo(
     () => ownersData?.data?.find((o) => o.id === selectedOwnerId),
     [ownersData, selectedOwnerId],
+  );
+
+  const selectedStall = useMemo(
+    () => stallsData?.data?.find((s) => s.id === selectedStallId),
+    [stallsData, selectedStallId],
   );
 
   const selectedContract = useMemo(
@@ -304,6 +327,7 @@ export function ReconciliationView() {
     setSearchTerm("");
     setSelectedStoreId(null);
     setSelectedOwnerId(null);
+    setSelectedStallId(null);
     setSelectedContractId(null);
     setSelectedYear("all");
     setEditedAmounts({});
@@ -322,6 +346,24 @@ export function ReconciliationView() {
       setPayingMonth(null);
     } catch (error) {
       console.error("Payment error:", error);
+    }
+  };
+
+  const handlePayAttendance = async (attendanceId: number) => {
+    setIsRedirecting(true);
+    const isMyRent = window.location.hostname.includes("myrent.uz");
+    const type = isMyRent ? 'payme' : 'click';
+    try {
+      const response = await baseApi.get(`/attendances/${attendanceId}/pay/`, {
+        params: { type },
+      });
+      if (response.data.url) {
+        window.open(response.data.url, '_blank');
+      }
+    } catch (error) {
+      console.error("Payment error:", error);
+    } finally {
+      setIsRedirecting(false);
     }
   };
 
@@ -362,14 +404,27 @@ export function ReconciliationView() {
                 <User className="h-3.5 w-3.5 mr-1.5" />
                 {t("nav.owners")}
               </button>
+              <button
+                onClick={() => handleFilterTypeChange("stall")}
+                className={cn(
+                  "flex-1 flex items-center justify-center py-1.5 text-xs font-bold rounded-md transition-all",
+                  filterType === "stall"
+                    ? "bg-background shadow text-primary"
+                    : "text-muted-foreground",
+                )}>
+                <LayoutGrid className="h-3.5 w-3.5 mr-1.5" />
+                Rasta
+              </button>
             </div>
             <CardTitle className="text-base flex items-center gap-2">
               {filterType === "store" ? (
                 <StoreIcon className="h-4 w-4 text-primary" />
+              ) : filterType === "stall" ? (
+                <LayoutGrid className="h-4 w-4 text-primary" />
               ) : (
                 <User className="h-4 w-4 text-primary" />
               )}
-              {filterType === "store" ? t("reconciliation.select_store") : t("reconciliation.select_owner")}
+              {filterType === "store" ? t("reconciliation.select_store") : filterType === "stall" ? "Rastani tanlang" : t("reconciliation.select_owner")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 flex-1 flex flex-col min-h-0">
@@ -379,6 +434,8 @@ export function ReconciliationView() {
                 placeholder={
                   filterType === "store"
                     ? t("reconciliation.store_number_placeholder")
+                    : filterType === "stall"
+                    ? "Rasta raqamini kiriting..."
                     : t("reconciliation.search_owner_placeholder")
                 }
                 className="pl-8 bg-muted/30 border-border/50"
@@ -389,7 +446,7 @@ export function ReconciliationView() {
 
             <div className="flex-1 -mx-2 px-2 overflow-y-auto custom-scrollbar">
               <div className="space-y-1">
-                {storesLoading || ownersLoading ? (
+                {storesLoading || ownersLoading || stallsLoading ? (
                   <div className="py-10 text-center text-sm text-muted-foreground animate-pulse">
                     {t("common.loading")}
                   </div>
@@ -431,6 +488,49 @@ export function ReconciliationView() {
                           className={cn(
                             "h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity",
                             selectedStoreId === store.id && "opacity-100",
+                          )}
+                        />
+                      </button>
+                    ))
+                  )
+                ) : filterType === "stall" ? (
+                  stallsData?.data?.length === 0 ? (
+                    <div className="py-10 text-center text-sm text-muted-foreground italic">
+                      {t("reconciliation.not_found")}
+                    </div>
+                  ) : (
+                    stallsData?.data?.map((stall) => (
+                      <button
+                        key={stall.id}
+                        onClick={() => {
+                          setSelectedStallId(stall.id);
+                          setSelectedContractId(null);
+                        }}
+                        className={cn(
+                          "w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all flex items-center justify-between group border",
+                          selectedStallId === stall.id
+                            ? "bg-primary text-primary-foreground shadow-md border-primary"
+                            : "hover:bg-muted border-border/50",
+                        )}>
+                        <div className="flex flex-col">
+                          <span className="font-semibold">
+                            № {stall.stallNumber}
+                          </span>
+                          <span
+                            className={cn(
+                              "text-xs",
+                              selectedStallId === stall.id
+                                ? "text-primary-foreground/80"
+                                : "text-muted-foreground",
+                            )}>
+                            {stall.area} {t("common.area_unit")} •{" "}
+                            Rasta
+                          </span>
+                        </div>
+                        <ChevronRight
+                          className={cn(
+                            "h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity",
+                            selectedStallId === stall.id && "opacity-100",
                           )}
                         />
                       </button>
@@ -482,12 +582,15 @@ export function ReconciliationView() {
 
         <div className="lg:col-span-3 flex flex-col gap-6 min-h-0">
           {(!selectedStoreId && filterType === "store") ||
-          (!selectedOwnerId && filterType === "owner") ? (
+          (!selectedOwnerId && filterType === "owner") ||
+          (!selectedStallId && filterType === "stall") ? (
             <Card className="h-full flex items-center justify-center border-dashed border-2 bg-muted/10 opacity-60">
               <div className="text-center space-y-3">
                 <div className="p-4 bg-muted rounded-full w-fit mx-auto">
                   {filterType === "store" ? (
                     <StoreIcon className="h-8 w-8 text-muted-foreground/50" />
+                  ) : filterType === "stall" ? (
+                    <LayoutGrid className="h-8 w-8 text-muted-foreground/50" />
                   ) : (
                     <User className="h-8 w-8 text-muted-foreground/50" />
                   )}
@@ -496,11 +599,74 @@ export function ReconciliationView() {
                   <p className="font-medium">{t("reconciliation.start_instruction")}</p>
                   <p className="text-sm text-muted-foreground">
                     {t("reconciliation.select_instruction", { 
-                      type: filterType === "store" ? t("reconciliation.store_type") : t("reconciliation.owner_type") 
+                      type: filterType === "store" ? t("reconciliation.store_type") : filterType === "stall" ? "rasta" : t("reconciliation.owner_type") 
                     })}
                   </p>
                 </div>
               </div>
+            </Card>
+          ) : filterType === "stall" && selectedStallId ? (
+            <Card className="h-full flex flex-col shadow-sm border-border/50 min-h-0 py-0 overflow-hidden">
+              <CardHeader className="bg-muted/30 py-4 shrink-0 flex flex-row items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div>
+                    <CardTitle className="text-lg">
+                      Rasta Davomati (№ {selectedStall?.stallNumber})
+                    </CardTitle>
+                  </div>
+                </div>
+              </CardHeader>
+              <Separator />
+              <CardContent className="pt-0 flex-1 min-h-0 overflow-hidden px-0 py-0">
+                <div className="h-full overflow-y-auto custom-scrollbar pt-0 px-0">
+                  {attendancesLoading ? (
+                    <div className="py-10 text-center animate-pulse">Yuklanmoqda...</div>
+                  ) : attendancesData?.data?.length === 0 ? (
+                    <div className="py-10 text-center text-muted-foreground font-medium">Ma'lumot topilmadi.</div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-border/50">
+                      {attendancesData?.data?.map((att: any) => (
+                        <div key={att.id} className="bg-background p-4 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={cn("p-2 rounded-lg", att.status === 'PAID' ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600")}>
+                              {att.status === 'PAID' ? <CheckCircle2 className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold capitalize">{format(new Date(att.date), "d MMMM, yyyy", { locale: uz })}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            {att.status !== 'PAID' && (
+                              <Button
+                                size="sm"
+                                onClick={() => handlePayAttendance(att.id)}
+                                disabled={isRedirecting}
+                                className="h-8 bg-blue-600 hover:bg-blue-700 font-bold"
+                              >
+                                {isRedirecting ? (
+                                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                ) : (
+                                  <PayIcon className="h-3 w-3 mr-1" />
+                                )}
+                                To'lash
+                              </Button>
+                            )}
+                            <div className="flex flex-col items-end gap-1">
+                              <span className="text-sm font-bold block">
+                                {new Intl.NumberFormat("uz-UZ").format(Number(att.amount || selectedStall?.dailyFee || 0))} UZS
+                              </span>
+                              <Badge variant={att.status === 'PAID' ? 'outline' : 'destructive'} 
+                                className={cn("text-[10px] uppercase h-5 px-2", att.status === 'PAID' && "border-emerald-200 bg-emerald-50 text-emerald-700")}>
+                                {att.status === 'PAID' ? "To'langan" : "Qarz"}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
             </Card>
           ) : (
             <>
