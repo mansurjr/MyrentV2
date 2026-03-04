@@ -112,6 +112,7 @@ export function ReconciliationView() {
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "debt">("all");
   const [attendancePage, setAttendancePage] = useState(1);
+  const [contractPage, setContractPage] = useState(1);
 
   const [isPayConfirmOpen, setIsPayConfirmOpen] = useState(false);
   const [payingMonth, setPayingMonth] = useState<{
@@ -156,6 +157,8 @@ export function ReconciliationView() {
     storeId: filterType === "store" ? selectedStoreId || undefined : undefined,
     ownerId: filterType === "owner" ? selectedOwnerId || undefined : undefined,
     isActive: showInactive ? false : true,
+    page: contractPage,
+    limit: 10,
   });
 
   const reconciliationContractsQuery = getReconciliationContracts(
@@ -334,6 +337,7 @@ export function ReconciliationView() {
     setSelectedYear("all");
     setEditedAmounts({});
     setAttendancePage(1);
+    setContractPage(1);
   };
 
   const handlePay = async () => {
@@ -465,6 +469,7 @@ export function ReconciliationView() {
                         onClick={() => {
                           setSelectedStoreId(store.id);
                           setSelectedContractId(null);
+                          setContractPage(1);
                         }}
                         className={cn(
                           "w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all flex items-center justify-between group border",
@@ -551,6 +556,7 @@ export function ReconciliationView() {
                       onClick={() => {
                         setSelectedOwnerId(owner.id);
                         setSelectedContractId(null);
+                        setContractPage(1);
                       }}
                       className={cn(
                         "w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all flex items-center justify-between group border",
@@ -818,6 +824,29 @@ export function ReconciliationView() {
                     </div>
                   )}
                 </CardContent>
+                {contractsData?.pagination && contractsData.pagination.totalPages > 1 && (
+                  <div className="p-4 border-t flex justify-between items-center bg-muted/10 shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setContractPage(p => Math.max(1, p - 1))}
+                      disabled={contractPage === 1}
+                    >
+                      Oldingi
+                    </Button>
+                    <span className="text-sm text-muted-foreground font-medium">
+                      {contractPage} / {contractsData.pagination.totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setContractPage(p => Math.min(contractsData.pagination.totalPages, p + 1))}
+                      disabled={contractPage === contractsData.pagination.totalPages}
+                    >
+                      Keyingi
+                    </Button>
+                  </div>
+                )}
               </Card>
               {selectedContractId && selectedContract && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 max-w-full pt-0">
