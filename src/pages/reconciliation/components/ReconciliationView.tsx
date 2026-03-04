@@ -111,8 +111,7 @@ export function ReconciliationView() {
   const [showInactive, setShowInactive] = useState(false);
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "debt">("all");
-  const [page, setPage] = useState(1);
-  const [contractsPage, setContractsPage] = useState(1);
+  const [attendancePage, setAttendancePage] = useState(1);
 
   const [isPayConfirmOpen, setIsPayConfirmOpen] = useState(false);
   const [payingMonth, setPayingMonth] = useState<{
@@ -128,38 +127,28 @@ export function ReconciliationView() {
 
   const debouncedSearch = useDebounce(searchTerm, 400);
 
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, filterType]);
-
-  useEffect(() => {
-    setContractsPage(1);
-  }, [selectedStoreId, selectedOwnerId, selectedStallId, filterType, showInactive]);
-
   const { data: storesData, isLoading: storesLoading } = useGetStores({
     search: filterType === "store" ? debouncedSearch : "",
-    limit: 20,
-    page: filterType === "store" ? page : 1,
+    limit: 100,
   });
 
   const { useGetStalls } = useStalls();
   const { data: stallsData, isLoading: stallsLoading } = useGetStalls({
     search: filterType === "stall" ? debouncedSearch : "",
-    limit: 20,
-    page: filterType === "stall" ? page : 1,
+    limit: 100,
   });
 
   const { useGetAttendances } = useAttendances();
   const { data: attendancesData, isLoading: attendancesLoading } = useGetAttendances({
     stallId: selectedStallId || undefined,
-    limit: 1000,
+    page: attendancePage,
+    limit: 14,
     enabled: filterType === "stall" && !!selectedStallId
   });
 
   const { data: ownersData, isLoading: ownersLoading } = useGetOwners({
     search: filterType === "owner" ? debouncedSearch : "",
-    limit: 20,
-    page: filterType === "owner" ? page : 1,
+    limit: 100,
     isActive: true,
   });
 
@@ -167,8 +156,6 @@ export function ReconciliationView() {
     storeId: filterType === "store" ? selectedStoreId || undefined : undefined,
     ownerId: filterType === "owner" ? selectedOwnerId || undefined : undefined,
     isActive: showInactive ? false : true,
-    page: contractsPage,
-    limit: 20,
   });
 
   const reconciliationContractsQuery = getReconciliationContracts(
@@ -346,7 +333,7 @@ export function ReconciliationView() {
     setSelectedContractId(null);
     setSelectedYear("all");
     setEditedAmounts({});
-    setContractsPage(1);
+    setAttendancePage(1);
   };
 
   const handlePay = async () => {
@@ -395,7 +382,7 @@ export function ReconciliationView() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-0">
-        <Card className="lg:col-span-1 flex flex-col shadow-sm border-border/50 h-full min-h-0">
+        <Card className="lg:col-span-1 flex flex-col shadow-sm border-border/50 h-[76vh]">
           <CardHeader className="pb-3 shrink-0">
             <div className="flex p-1 bg-muted rounded-lg mb-4">
               <button
@@ -521,6 +508,7 @@ export function ReconciliationView() {
                         onClick={() => {
                           setSelectedStallId(stall.id);
                           setSelectedContractId(null);
+                          setAttendancePage(1);
                         }}
                         className={cn(
                           "w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all flex items-center justify-between group border",
@@ -593,41 +581,10 @@ export function ReconciliationView() {
                 )}
               </div>
             </div>
-
-            {/* Pagination Controls */}
-            {!storesLoading && !ownersLoading && !stallsLoading && (
-              <div className="shrink-0 flex items-center justify-between border-t border-border/50 pt-3 mt-auto">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="h-8 text-xs font-semibold"
-                >
-                  {t("common.previous", "O'tgan")}
-                </Button>
-                <div className="text-xs font-medium text-muted-foreground">
-                  Sahifa {page}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => p + 1)}
-                  disabled={
-                    (filterType === "store" && (storesData?.data?.length || 0) < 20) ||
-                    (filterType === "owner" && (ownersData?.data?.length || 0) < 20) ||
-                    (filterType === "stall" && (stallsData?.data?.length || 0) < 20)
-                  }
-                  className="h-8 text-xs font-semibold"
-                >
-                  {t("common.next", "Keyingi")}
-                </Button>
-              </div>
-            )}
           </CardContent>
         </Card>
 
-        <div className="lg:col-span-3 flex flex-col gap-6 min-h-0">
+        <div className="lg:col-span-3 flex flex-col gap-6 min-h-0 h-[76vh] overflow-y-auto custom-scrollbar pr-2 pb-2">
           {(!selectedStoreId && filterType === "store") ||
           (!selectedOwnerId && filterType === "owner") ||
           (!selectedStallId && filterType === "stall") ? (
@@ -713,22 +670,40 @@ export function ReconciliationView() {
                     </div>
                   )}
                 </div>
+                {attendancesData?.pagination && attendancesData.pagination.totalPages > 1 && (
+                  <div className="p-4 border-t flex justify-between items-center bg-muted/10 shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAttendancePage(p => Math.max(1, p - 1))}
+                      disabled={attendancePage === 1}
+                    >
+                      Oldingi
+                    </Button>
+                    <span className="text-sm text-muted-foreground font-medium">
+                      {attendancePage} / {attendancesData.pagination.totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAttendancePage(p => Math.min(attendancesData.pagination.totalPages, p + 1))}
+                      disabled={attendancePage === attendancesData.pagination.totalPages}
+                    >
+                      Keyingi
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ) : (
             <>
-              <Card className={cn(
-                "shadow-sm border-border/50 flex flex-col min-h-0",
-                selectedContractId ? "shrink-0 h-[35vh]" : "flex-1"
-              )}>
-                <CardHeader className="pb-4 shrink-0 flex flex-row items-center justify-between">
+              <Card className="shrink-0 shadow-sm border-border/50">
+                <CardHeader className="pb-4 flex flex-row items-center justify-between">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <FileText className="h-5 w-5 text-primary" />
                     {t("reconciliation.contracts")}:{" "}
                     {filterType === "store"
                       ? `${t("reconciliation.store_no")} ${selectedStore?.storeNumber}`
-                      : filterType === "stall"
-                      ? `Rasta № ${selectedStall?.stallNumber}`
                       : selectedOwner?.fullName}
                   </CardTitle>
                   <Button
@@ -749,7 +724,7 @@ export function ReconciliationView() {
                     {t("reconciliation.archived_items")}
                   </Button>
                 </CardHeader>
-                <CardContent className="overflow-y-auto custom-scrollbar flex-1">
+                <CardContent>
                   {contractsLoading ? (
                     <div className="py-4 text-center text-sm text-muted-foreground animate-pulse">
                       {t("common.loading")}
@@ -842,37 +817,11 @@ export function ReconciliationView() {
                       )})}
                     </div>
                   )}
-
-                  {!contractsLoading && contractsData?.data?.length !== 0 && (
-                    <div className="shrink-0 flex items-center justify-between border-t border-border/50 pt-3 mt-auto">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setContractsPage((p) => Math.max(1, p - 1))}
-                        disabled={contractsPage === 1}
-                        className="h-8 text-xs font-semibold"
-                      >
-                        {t("common.previous", "O'tgan")}
-                      </Button>
-                      <div className="text-xs font-medium text-muted-foreground">
-                        Sahifa {contractsPage}
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setContractsPage((p) => p + 1)}
-                        disabled={(contractsData?.data?.length || 0) < 20}
-                        className="h-8 text-xs font-semibold"
-                      >
-                        {t("common.next", "Keyingi")}
-                      </Button>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
               {selectedContractId && selectedContract && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 min-h-0 max-w-full pt-0">
-                  <div className="shrink-0 md:w-full overflow-y-auto custom-scrollbar">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 max-w-full pt-0">
+                  <div className="space-y-6 shrink-0 md:w-full">
                     <Card className="h-fit shadow-sm border-border/50 overflow-hidden pt-0">
                       <div className="bg-primary/5 p-4 border-b border-border/50 flex items-center justify-between">
                         <h4 className="text-sm font-bold uppercase tracking-wider text-primary">
