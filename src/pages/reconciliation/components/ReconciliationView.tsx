@@ -111,7 +111,7 @@ export function ReconciliationView() {
   const [showInactive, setShowInactive] = useState(false);
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "debt">("all");
-  const [page, setPage] = useState(1);
+  const [contractsPage, setContractsPage] = useState(1);
 
   const [isPayConfirmOpen, setIsPayConfirmOpen] = useState(false);
   const [payingMonth, setPayingMonth] = useState<{
@@ -128,20 +128,18 @@ export function ReconciliationView() {
   const debouncedSearch = useDebounce(searchTerm, 400);
 
   useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, filterType]);
+    setContractsPage(1);
+  }, [selectedStoreId, selectedOwnerId, selectedStallId, filterType, showInactive]);
 
   const { data: storesData, isLoading: storesLoading } = useGetStores({
     search: filterType === "store" ? debouncedSearch : "",
-    limit: 20,
-    page: filterType === "store" ? page : 1,
+    limit: 100,
   });
 
   const { useGetStalls } = useStalls();
   const { data: stallsData, isLoading: stallsLoading } = useGetStalls({
     search: filterType === "stall" ? debouncedSearch : "",
-    limit: 20,
-    page: filterType === "stall" ? page : 1,
+    limit: 100,
   });
 
   const { useGetAttendances } = useAttendances();
@@ -153,8 +151,7 @@ export function ReconciliationView() {
 
   const { data: ownersData, isLoading: ownersLoading } = useGetOwners({
     search: filterType === "owner" ? debouncedSearch : "",
-    limit: 20,
-    page: filterType === "owner" ? page : 1,
+    limit: 100,
     isActive: true,
   });
 
@@ -162,6 +159,8 @@ export function ReconciliationView() {
     storeId: filterType === "store" ? selectedStoreId || undefined : undefined,
     ownerId: filterType === "owner" ? selectedOwnerId || undefined : undefined,
     isActive: showInactive ? false : true,
+    page: contractsPage,
+    limit: 20,
   });
 
   const reconciliationContractsQuery = getReconciliationContracts(
@@ -339,6 +338,7 @@ export function ReconciliationView() {
     setSelectedContractId(null);
     setSelectedYear("all");
     setEditedAmounts({});
+    setContractsPage(1);
   };
 
   const handlePay = async () => {
@@ -586,36 +586,6 @@ export function ReconciliationView() {
               </div>
             </div>
 
-            {/* Pagination Controls */}
-            {!storesLoading && !ownersLoading && !stallsLoading && (
-              <div className="shrink-0 flex items-center justify-between border-t border-border/50 pt-3 mt-auto">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="h-8 text-xs font-semibold"
-                >
-                  {t("common.previous", "O'tgan")}
-                </Button>
-                <div className="text-xs font-medium text-muted-foreground">
-                  Sahifa {page}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage((p) => p + 1)}
-                  disabled={
-                    (filterType === "store" && (storesData?.data?.length || 0) < 20) ||
-                    (filterType === "owner" && (ownersData?.data?.length || 0) < 20) ||
-                    (filterType === "stall" && (stallsData?.data?.length || 0) < 20)
-                  }
-                  className="h-8 text-xs font-semibold"
-                >
-                  {t("common.next", "Keyingi")}
-                </Button>
-              </div>
-            )}
           </CardContent>
         </Card>
 
@@ -832,6 +802,32 @@ export function ReconciliationView() {
                           </div>
                         </button>
                       )})}
+                    </div>
+                  )}
+
+                  {!contractsLoading && contractsData?.data?.length !== 0 && (
+                    <div className="shrink-0 flex items-center justify-between border-t border-border/50 pt-3 mt-auto">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setContractsPage((p) => Math.max(1, p - 1))}
+                        disabled={contractsPage === 1}
+                        className="h-8 text-xs font-semibold"
+                      >
+                        {t("common.previous", "O'tgan")}
+                      </Button>
+                      <div className="text-xs font-medium text-muted-foreground">
+                        Sahifa {contractsPage}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setContractsPage((p) => p + 1)}
+                        disabled={(contractsData?.data?.length || 0) < 20}
+                        className="h-8 text-xs font-semibold"
+                      >
+                        {t("common.next", "Keyingi")}
+                      </Button>
                     </div>
                   )}
                 </CardContent>
