@@ -111,6 +111,7 @@ export function ReconciliationView() {
   const [showInactive, setShowInactive] = useState(false);
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "debt">("all");
+  const [page, setPage] = useState(1);
 
   const [isPayConfirmOpen, setIsPayConfirmOpen] = useState(false);
   const [payingMonth, setPayingMonth] = useState<{
@@ -126,15 +127,21 @@ export function ReconciliationView() {
 
   const debouncedSearch = useDebounce(searchTerm, 400);
 
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, filterType]);
+
   const { data: storesData, isLoading: storesLoading } = useGetStores({
     search: filterType === "store" ? debouncedSearch : "",
-    limit: 100,
+    limit: 20,
+    page: filterType === "store" ? page : 1,
   });
 
   const { useGetStalls } = useStalls();
   const { data: stallsData, isLoading: stallsLoading } = useGetStalls({
     search: filterType === "stall" ? debouncedSearch : "",
-    limit: 100,
+    limit: 20,
+    page: filterType === "stall" ? page : 1,
   });
 
   const { useGetAttendances } = useAttendances();
@@ -146,7 +153,8 @@ export function ReconciliationView() {
 
   const { data: ownersData, isLoading: ownersLoading } = useGetOwners({
     search: filterType === "owner" ? debouncedSearch : "",
-    limit: 100,
+    limit: 20,
+    page: filterType === "owner" ? page : 1,
     isActive: true,
   });
 
@@ -379,7 +387,7 @@ export function ReconciliationView() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-0">
-        <Card className="lg:col-span-1 flex flex-col shadow-sm border-border/50 h-[76vh]">
+        <Card className="lg:col-span-1 flex flex-col shadow-sm border-border/50 h-full min-h-0">
           <CardHeader className="pb-3 shrink-0">
             <div className="flex p-1 bg-muted rounded-lg mb-4">
               <button
@@ -577,10 +585,41 @@ export function ReconciliationView() {
                 )}
               </div>
             </div>
+
+            {/* Pagination Controls */}
+            {!storesLoading && !ownersLoading && !stallsLoading && (
+              <div className="shrink-0 flex items-center justify-between border-t border-border/50 pt-3 mt-auto">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="h-8 text-xs font-semibold"
+                >
+                  {t("common.previous", "O'tgan")}
+                </Button>
+                <div className="text-xs font-medium text-muted-foreground">
+                  Sahifa {page}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={
+                    (filterType === "store" && (storesData?.data?.length || 0) < 20) ||
+                    (filterType === "owner" && (ownersData?.data?.length || 0) < 20) ||
+                    (filterType === "stall" && (stallsData?.data?.length || 0) < 20)
+                  }
+                  className="h-8 text-xs font-semibold"
+                >
+                  {t("common.next", "Keyingi")}
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        <div className="lg:col-span-3 flex flex-col gap-6 min-h-0">
+        <div className="lg:col-span-3 flex flex-col gap-6 min-h-0 overflow-y-auto custom-scrollbar">
           {(!selectedStoreId && filterType === "store") ||
           (!selectedOwnerId && filterType === "owner") ||
           (!selectedStallId && filterType === "stall") ? (
@@ -670,13 +709,18 @@ export function ReconciliationView() {
             </Card>
           ) : (
             <>
-              <Card className="shrink-0 shadow-sm border-border/50">
-                <CardHeader className="pb-4 flex flex-row items-center justify-between">
+              <Card className={cn(
+                "shadow-sm border-border/50 flex flex-col",
+                selectedContractId ? "shrink-0 max-h-[40vh]" : "flex-1 min-h-[300px]"
+              )}>
+                <CardHeader className="pb-4 shrink-0 flex flex-row items-center justify-between">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <FileText className="h-5 w-5 text-primary" />
                     {t("reconciliation.contracts")}:{" "}
                     {filterType === "store"
                       ? `${t("reconciliation.store_no")} ${selectedStore?.storeNumber}`
+                      : filterType === "stall"
+                      ? `Rasta № ${selectedStall?.stallNumber}`
                       : selectedOwner?.fullName}
                   </CardTitle>
                   <Button
@@ -697,7 +741,7 @@ export function ReconciliationView() {
                     {t("reconciliation.archived_items")}
                   </Button>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="overflow-y-auto custom-scrollbar flex-1">
                   {contractsLoading ? (
                     <div className="py-4 text-center text-sm text-muted-foreground animate-pulse">
                       {t("common.loading")}
