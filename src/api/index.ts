@@ -25,6 +25,8 @@ baseApi.interceptors.request.use(
 
 let isRefreshing = false;
 let failedQueue: any[] = [];
+const isPublicEndpoint = (url?: string) =>
+  Boolean(url && /^\/?public(\/|$)/.test(url));
 
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach((prom) => {
@@ -51,6 +53,11 @@ baseApi.interceptors.response.use(
     }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // Public flow endpoints must not force auth refresh or redirect to /login.
+      if (isPublicEndpoint(originalRequest.url)) {
+        return Promise.reject(error);
+      }
+
       if (isRefreshing) {
         return new Promise(function (resolve, reject) {
           failedQueue.push({ resolve, reject });

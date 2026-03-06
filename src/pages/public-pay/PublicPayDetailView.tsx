@@ -5,9 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { getPublicContractDetail, getPublicStall } from "@/api/publicPay";
+import {
+  createPublicContractPaymentUrl,
+  createPublicStallPaymentUrl,
+  getPublicContractDetail,
+  getPublicStall,
+} from "@/api/publicPay";
 import { formatTashkentDate, getMonthName } from "@/lib/time";
-import baseApi from "@/api";
 import { cn } from "@/lib/utils";
 
 export default function PublicPayDetailView() {
@@ -25,12 +29,10 @@ export default function PublicPayDetailView() {
   const [error, setError] = useState("");
   const [payingStatus, setPayingStatus] = useState<string>("idle");
   const [selectedPeriods, setSelectedPeriods] = useState<string[]>([]);
-  const [reconciliationDebtAmount, setReconciliationDebtAmount] = useState<number | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
     setError("");
-    setReconciliationDebtAmount(null);
     try {
       if (mode === "contract" && contractId) {
         const res = await getPublicContractDetail(Number(contractId));
@@ -39,29 +41,6 @@ export default function PublicPayDetailView() {
         const unpaid = periods.filter((p: any) => p.status === 'PENDING' || !p.status || p.status === 'UNPAID');
         if (unpaid.length > 0) {
           setSelectedPeriods(unpaid.map((p: any) => p.id));
-        }
-
-        try {
-          const reconciliation = await baseApi.get("/statistics/reconciliation/contracts", {
-            params: { contractId: Number(contractId), isActive: true },
-          });
-          const summary = Array.isArray(reconciliation.data?.summary)
-            ? reconciliation.data.summary
-            : [];
-          const contractSummary = summary.find((item: any) => {
-            const id = Number(item?.contractId ?? item?.id);
-            return Number.isFinite(id) && id === Number(contractId);
-          });
-          const debt = Number(
-            contractSummary?.unpaid ??
-              contractSummary?.debtAmount ??
-              contractSummary?.debt,
-          );
-          if (Number.isFinite(debt)) {
-            setReconciliationDebtAmount(debt);
-          }
-        } catch {
-          setReconciliationDebtAmount(null);
         }
       } else if (mode === "stall" && stallNumber) {
         try {
@@ -121,17 +100,17 @@ export default function PublicPayDetailView() {
     try {
       let url = "";
       if (mode === "contract" && data?.id) {
-        const res = await baseApi.post<{ url: string }>(`/public/contracts/${data.id}/payment-url`, {
+        const res = await createPublicContractPaymentUrl(data.id, {
           periodIds: selectedPeriods,
           method
         });
-        url = res.data.url;
+        url = res.url;
       } else if (mode === "stall" && (data?.stall?.stallNumber || stallNumber)) {
-        const res = await baseApi.post<{ url: string }>(`/public/stalls/${data?.stall?.stallNumber || stallNumber}/payment-url`, {
+        const res = await createPublicStallPaymentUrl(data?.stall?.stallNumber || stallNumber, {
           date: data?.payment?.date || date,
           method
         });
-        url = res.data.url;
+        url = res.url;
       }
 
       if (url) {
@@ -178,9 +157,16 @@ export default function PublicPayDetailView() {
   const pendingPeriods = allPeriods.filter((p: any) => 
     p.status === 'PENDING' || p.status === 'UNPAID' || !p.status || p.isPaid === false
   );
-  const backendDebtAmount = Number(
-    reconciliationDebtAmount ?? data.paymentSnapshot?.debtAmount ?? 0,
+  const backendDebtAmountRaw = Number(
+    data.paymentSnapshot?.debtAmount ??
+      data.unpaid ??
+      data.debtAmount ??
+      data.debt ??
+      0,
   );
+  const backendDebtAmount = Number.isFinite(backendDebtAmountRaw)
+    ? backendDebtAmountRaw
+    : 0;
   
   const amountToPay = isContract 
     ? backendDebtAmount
