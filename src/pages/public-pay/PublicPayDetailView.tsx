@@ -18,6 +18,8 @@ export default function PublicPayDetailView() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  const availableMethods = window.location.origin.includes("myrent") ? ["payme"] : ["click"];
+
   const contractId = searchParams.get("contractId");
   const mode = searchParams.get("mode") || "contract";
   const stallNumber = searchParams.get("stall");
@@ -48,7 +50,6 @@ export default function PublicPayDetailView() {
           setData(Array.isArray(res) ? res[0] : res);
         } catch (err) {
           if (create) {
-            // Create mode: Search failed, but we want to initialize a mock record for payment creation
             setData({
               stall: { stallNumber: stallNumber },
               payment: { date: date, status: 'UNPAID' },
@@ -287,14 +288,7 @@ export default function PublicPayDetailView() {
 
             {!isPaid && (
               <div className="grid gap-4 pt-4">
-                {(data.availableMethods || ["click", "payme"])
-                  .filter((method: string) => {
-                    const m = method.toLowerCase();
-                    if (m === 'payme') {
-                      return window.location.hostname.includes("myrent.uz");
-                    }
-                    return true; // Keep Click and others
-                  })
+                {(data.availableMethods || availableMethods)
                   .map((method: string) => {
                     const m = method.toLowerCase();
                     const isClick = m === "click";
