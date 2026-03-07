@@ -14,6 +14,16 @@ import {
 import { formatTashkentDate, getMonthName } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
+const openNewTab = (url: string) => {
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+};
+
 export default function PublicPayDetailView() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -115,7 +125,7 @@ export default function PublicPayDetailView() {
       }
 
       if (url) {
-        window.open(url, '_blank');
+        openNewTab(url);
       } else {
         throw new Error("To'lov havolasi olinmadi");
       }
