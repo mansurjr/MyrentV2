@@ -13,8 +13,8 @@ export function formatTashkentDate(dateString: string) {
   return new Intl.DateTimeFormat('uz-UZ', {
     timeZone: 'Asia/Tashkent',
     year: 'numeric',
-    month: 'long',
-    day: 'numeric'
+    month: '2-digit',
+    day: '2-digit'
   }).format(date);
 }
 export function getMonthName(monthNumber: number) {
