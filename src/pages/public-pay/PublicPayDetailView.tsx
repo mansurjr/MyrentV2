@@ -11,7 +11,7 @@ import {
   getPublicContractDetail,
   getPublicStall,
 } from "@/api/publicPay";
-import { formatTashkentDate, getMonthName } from "@/lib/time";
+import { getMonthName } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 const openNewTab = (url: string) => {
@@ -181,7 +181,7 @@ export default function PublicPayDetailView() {
   
   const amountToPay = isContract 
     ? backendDebtAmount
-    : Number(data.payment?.amount || data.stall?.dailyFee || 0);
+    : Number(data?.dailyFee || 0);
 
   const isPaid = isContract 
     ? (pendingPeriods.length === 0 && backendDebtAmount === 0)
@@ -210,7 +210,7 @@ export default function PublicPayDetailView() {
               </CardTitle>
             </div>
             <CardDescription className="font-semibold text-slate-600 dark:text-slate-400">
-              {isContract ? data.owner?.fullName : `Sana: ${formatTashkentDate(data.payment?.date || date || "")}`}
+              {isContract ? data.owner?.fullName : `Sana: ${date}`}
             </CardDescription>
           </CardHeader>
 

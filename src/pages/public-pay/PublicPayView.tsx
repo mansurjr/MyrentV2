@@ -110,7 +110,11 @@ export default function PublicPayView() {
           <CardHeader className="border-b space-y-6 bg-slate-50/50 dark:bg-slate-800/50">
             <div className="flex p-1 bg-slate-200 dark:bg-slate-800 rounded-lg max-w-sm mx-auto">
               <button
-                onClick={() => setMode("store")}
+                onClick={() => {
+                  setMode("store");
+                  setResults([]);
+                  setError("");
+                }}
                 className={cn(
                   "flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-semibold transition-all",
                   mode === "store" 
@@ -122,7 +126,11 @@ export default function PublicPayView() {
                 Do'kon
               </button>
               <button
-                onClick={() => setMode("stall")}
+                onClick={() => {
+                  setMode("stall");
+                  setResults([]);
+                  setError("");
+                }}
                 className={cn(
                   "flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-semibold transition-all",
                   mode === "stall" 
@@ -258,12 +266,12 @@ export default function PublicPayView() {
                         <h3 className="text-lg font-bold text-slate-900 dark:text-white group-hover:text-blue-600 transition-colors leading-none mb-1">
                           {mode === "store" 
                             ? (entry.store?.storeNumber || `Shartnoma #${entry.id}`)
-                            : `Rasta: ${entry.stall?.stallNumber || entry.id}`}
+                            : `Rasta: ${entry.stallNumber || entry.id}`}
                         </h3>
                         <p className="text-sm text-muted-foreground font-medium flex items-center gap-2">
                           {mode === "store"
                             ? (entry.owner?.fullName || "Tadbirkor ma'lumoti kiritilmagan")
-                            : `Sana: ${formatTashkentDate(entry.payment?.date || date)}`}
+                            : `Sana: ${entry.payment?.date || date}`}
                           
                           {mode === "store" && getEntryDebtAmount(entry) > 0 && (
                             <Badge variant="destructive" className="ml-2 h-5 px-2 text-[10px] font-bold">
