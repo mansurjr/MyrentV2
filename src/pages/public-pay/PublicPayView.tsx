@@ -271,7 +271,7 @@ export default function PublicPayView() {
                         <p className="text-sm text-muted-foreground font-medium flex items-center gap-2">
                           {mode === "store"
                             ? (entry.owner?.fullName || "Tadbirkor ma'lumoti kiritilmagan")
-                            : `Sana: ${entry?.date}`}
+                            : `Sana: ${formatTashkentDate(entry.date)}`}
                           
                           {mode === "store" && getEntryDebtAmount(entry) > 0 && (
                             <Badge variant="destructive" className="ml-2 h-5 px-2 text-[10px] font-bold">
