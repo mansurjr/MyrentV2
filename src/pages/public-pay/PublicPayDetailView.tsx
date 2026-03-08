@@ -185,7 +185,7 @@ export default function PublicPayDetailView() {
 
   const isPaid = isContract 
     ? (pendingPeriods.length === 0 && backendDebtAmount === 0)
-    : data.payment?.status === 'PAID';
+    : data?.status === 'PAID';
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 px-4 py-8 sm:py-20 flex items-center justify-center">
