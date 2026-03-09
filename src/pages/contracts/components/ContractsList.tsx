@@ -227,19 +227,19 @@ export function ContractsList() {
             <p className="text-muted-foreground font-medium">{t("common.loading")}</p>
           </div>
         ) : (
-          <DataTable
-            columns={contractColumns}
-            data={data?.data || []}
-            pageCount={data?.pagination?.totalPages || 1}
-            pageIndex={page}
-            onPageChange={setPage}
-            pageSize={pageSize}
-            onPageSizeChange={(size) => {
-              setPageSize(size);
-              setPage(1);
-            }}
-            total={data?.pagination?.total || 0}
-          />
+            <DataTable
+              columns={contractColumns}
+              data={(Array.isArray(data) ? data : data?.data) || []}
+              pageCount={data?.pagination?.totalPages || (data?.total ? Math.ceil(data.total / pageSize) : 1)}
+              pageIndex={page}
+              onPageChange={setPage}
+              pageSize={pageSize}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPage(1);
+              }}
+              total={data?.pagination?.total || data?.total || (Array.isArray(data) ? data.length : 0)}
+            />
         )}
       </div>
     </div>

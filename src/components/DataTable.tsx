@@ -166,7 +166,7 @@ export function DataTable<TData, TValue>({
                   onPageSizeChange(Number(value));
                 }}
               >
-                <SelectTrigger className="h-8 w-[70px] bg-transparent border-border/50 focus:ring-0">
+                <SelectTrigger className="h-8 w-17.5 bg-transparent border-border/50 focus:ring-0">
                   <SelectValue placeholder={pageSize} />
                 </SelectTrigger>
                 <SelectContent>
@@ -180,7 +180,6 @@ export function DataTable<TData, TValue>({
             )}
             <span>gacha, Yozuvlar soni: {total}.</span>
           </div>
-          
           <div className="flex items-center space-x-1 sm:space-x-2">
             <Button
               variant="outline"
