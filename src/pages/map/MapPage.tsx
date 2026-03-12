@@ -52,7 +52,7 @@ export default function MapPage() {
   const { useGetStores } = useStores();
   const { useGetStalls } = useStalls();
   const { useGetSections } = useSections();
-  const { automatePaymentRedirect } = useContracts();
+  const { automatePaymentRedirect, useGetContract } = useContracts();
   const { createAttendance } = useAttendances();
 
   const { data: storesData, isLoading: storesLoading } = useGetStores({ limit: 1000, withContracts: true });
@@ -84,6 +84,8 @@ export default function MapPage() {
     }
     return stallsData?.data?.find(s => s.id === selectedItem.data.id) || selectedItem.data;
   }, [selectedItem, storesData, stallsData]);
+
+  const { data: contractDetail, isLoading: isContractLoading } = useGetContract(itemData?.contracts?.[0]?.id);
 
   const todayAttendance = useMemo(() => {
     if (selectedItem?.type !== 'stall' || !itemData) return null;
@@ -125,20 +127,21 @@ export default function MapPage() {
   };
 
   const handleContractPay = async () => {
-    if (!itemData?.contracts?.[0]) return;
-    const contract = itemData.contracts[0];
+    if (!itemData?.contracts?.[0] || !contractDetail?.paymentPeriods) return;
     
-    // Find pending periods to pay
-    const pendingPeriodIds = contract.paymentPeriods
-      ?.filter((p: any) => p.status === 'PENDING')
-      ?.sort((a: any, b: any) => {
-        if (a.year !== b.year) return a.year - b.year;
-        return a.month - b.month;
-      })
-      ?.map((p: any) => p.id) || [];
+    const contract = itemData.contracts[0];
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
 
-    if (pendingPeriodIds.length > 0) {
-      await automatePaymentRedirect(contract.id, pendingPeriodIds);
+    const currentPeriod = contractDetail.paymentPeriods.find((p: any) => 
+      p.status === 'PENDING' && 
+      p.year === currentYear && 
+      p.month === currentMonth
+    );
+
+    if (currentPeriod) {
+      await automatePaymentRedirect(contract.id, [currentPeriod.id]);
     }
   };
 
@@ -454,8 +457,13 @@ export default function MapPage() {
                   <Button 
                     onClick={handleContractPay}
                     className="bg-blue-600 hover:bg-blue-700 font-bold w-full"
+                    disabled={isContractLoading}
                   >
-                    <CreditCard className="h-4 w-4 mr-2" />
+                    {isContractLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <CreditCard className="h-4 w-4 mr-2" />
+                    )}
                     {t("common.pay")}
                   </Button>
                 </div>

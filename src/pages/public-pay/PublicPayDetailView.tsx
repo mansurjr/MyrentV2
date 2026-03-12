@@ -35,7 +35,7 @@ export default function PublicPayDetailView() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const availableMethods = window.location.origin.includes("myrent")
+  const availableMethods = window.location.hostname.split(".")[0] === "myrent"
     ? ["payme"]
     : ["click"];
 
@@ -383,6 +383,8 @@ export default function PublicPayDetailView() {
                 {(data.availableMethods || availableMethods).map(
                   (method: string) => {
                     const m = method.toLowerCase();
+                    console.log("remote",data.availableMethods)
+                    console.log("local",availableMethods)
                     const isClick = m === "click";
                     const isPayme = m === "payme";
 
