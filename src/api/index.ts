@@ -2,8 +2,8 @@ import axios from "axios";
 import { toast } from "@/hooks/use-toast";
 import i18n from "../plugins/i18n";
 
-const baseURL =`${window.location.origin}/api`
-// const baseURL =`http://localhost:3018/api`
+// const baseURL =`${window.location.origin}/api`
+const baseURL =`http://localhost:3018/api`
 
 const baseApi = axios.create({
   baseURL,
