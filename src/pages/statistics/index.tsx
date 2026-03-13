@@ -106,23 +106,18 @@ const StatisticsPage = () => {
     if (!byEntityQuery.data) return [];
 
     const payload = byEntityQuery.data as Record<string, unknown>;
-    const stores = Array.isArray(payload.stores) ? payload.stores : [];
-    const stalls = Array.isArray(payload.stalls) ? payload.stalls : [];
+    const stores = Array.isArray(payload.stores) ? payload.stores as { name: string; value: number }[] : [];
+    const stalls = Array.isArray(payload.stalls) ? payload.stalls as { name: string; value: number }[] : [];
 
-    const storeTotal = firstNumber(
-      payload,
-      ["storeTotal", "storesTotal", "storeRevenue", "storesRevenue"],
-      0,
+    // Backend returns stalls/stores as [{name, value}] arrays — sum their values for totals
+    const storeTotal = firstNumber(payload, ["storeTotal", "storesTotal", "storeRevenue", "storesRevenue"],
+      stores.reduce((sum, s) => sum + toNumber(s.value), 0),
     );
-    const stallTotal = firstNumber(
-      payload,
-      ["stallTotal", "stallsTotal", "stallRevenue", "stallsRevenue"],
-      0,
+    const stallTotal = firstNumber(payload, ["stallTotal", "stallsTotal", "stallRevenue", "stallsRevenue"],
+      stalls.reduce((sum, s) => sum + toNumber(s.value), 0),
     );
-    const total = firstNumber(
-      payload,
-      ["total", "totalRevenue", "totalAmount", "overallTotal"],
-      0,
+    const total = firstNumber(payload, ["total", "totalRevenue", "totalAmount", "overallTotal"],
+      storeTotal + stallTotal,
     );
 
     const storeCount = firstCount(payload, ["storeCount", "storesCount"], stores.length);
