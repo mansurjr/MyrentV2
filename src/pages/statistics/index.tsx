@@ -149,7 +149,7 @@ const StatisticsPage = () => {
   }, [byEntityQuery.data, t]);
 
   function formatCurrency(value: number) {
-    return new Intl.NumberFormat("uz-UZ").format(value);
+    return new Intl.NumberFormat("uz-UZ").format(value) + " so'm";
   }
 
   if (monthlySeriesQuery.isLoading || byEntityQuery.isLoading) {
@@ -241,7 +241,7 @@ const StatisticsPage = () => {
                                 }}
                                 itemStyle={{ fontWeight: 700, fontSize: '12px', padding: '2px 0' }}
                                 labelStyle={{ fontWeight: 800, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', color: '#94a3b8' }}
-                                formatter={(value: any) => [formatCurrency(value) + " UZS", ""]}
+                                formatter={(value: any) => [formatCurrency(value), ""]}
                             />
                             <Area 
                                 type="monotone" 
