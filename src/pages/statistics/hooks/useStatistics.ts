@@ -74,9 +74,20 @@ export const useStatistics = () => {
     });
   };
 
+  const getDashboardStats = () => {
+    return useQuery({
+      queryKey: ["statistics", "dashboard"],
+      queryFn: async () => {
+        const { data } = await baseApi.get("/statistics/dashboard");
+        return data;
+      },
+    });
+  };
+
   return {
     getMonthlySeries,
     getRevenueByEntity,
     getReconciliationContracts,
+    getDashboardStats,
   };
 };

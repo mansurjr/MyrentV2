@@ -181,6 +181,24 @@
     "store_revenue": "Дўконлардан тушум",
     "no_data": "Маълумотлар мавжуд эмас",
     "current_month": "Шу ой",
-    "last_year": "Ўтган йил"
+    "last_year": "Ўтган йил",
+    "expected_payments": "Кутилаётган тушумлар",
+    "expected_vs_paid": "Тўланган ва қолдиқ солиштирмаси",
+    "paid": "Тўланган",
+    "remaining": "Қолган қарз",
+    "total": "Жами",
+    "week": "Бу ҳафта",
+    "month": "Шу ой",
+    "year": "Шу йил",
+    "stalls_occupancy": "Расталар бандлиги",
+    "stores_occupancy": "Дўконлар бандлиги",
+    "rented": "банд",
+    "filled": "банд",
+    "empty": "бўш",
+    "top_debtors": "Энг катта қарздорлар",
+    "priority_followup": "Тўловни кечиктираётганлар",
+    "entity": "Объект",
+    "owner": "Эгаси",
+    "debt": "Қарздорлик"
   }
 }
