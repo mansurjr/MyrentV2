@@ -12,7 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Save, Loader2, Search, Store as StoreIcon, User as UserIcon, PlusCircle } from "lucide-react";
+import {
+  Save,
+  Loader2,
+  Search,
+  Store as StoreIcon,
+  User as UserIcon,
+  PlusCircle,
+} from "lucide-react";
 import { useContracts, type ICreateContractDto } from "../hooks/useContracts";
 import { useOwners } from "../../owners/hooks/useOwners";
 import { useStores } from "../../stores/hooks/useStores";
@@ -40,34 +47,45 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
   const [storeSearch, setStoreSearch] = useState("");
   const debouncedOwnerSearch = useDebounce(ownerSearch, 400);
   const debouncedStoreSearch = useDebounce(storeSearch, 400);
-
-  const { data: ownersData, isLoading: ownersLoading } = useGetOwners({ 
+  const { data: ownersData, isLoading: ownersLoading } = useGetOwners({
     search: debouncedOwnerSearch,
-    limit: 1000 
+    limit: 1000,
   });
-  
-  const { data: storesData, isLoading: storesLoading } = useGetStores({ 
+
+  const { data: storesData, isLoading: storesLoading } = useGetStores({
     search: debouncedStoreSearch,
     onlyFree: !contract ? true : undefined,
-    limit: 1000 
+    limit: 1000,
   });
 
-  const [formData, setFormData] = useState<Omit<ICreateContractDto, "shopMonthlyFee"> & { shopMonthlyFee: string | number }>({
+  const [formData, setFormData] = useState<
+    Omit<ICreateContractDto, "shopMonthlyFee"> & {
+      shopMonthlyFee: string | number;
+    }
+  >({
     certificateNumber: "",
-    issueDate: new Date().toISOString().split('T')[0],
+    issueDate: new Date().toISOString().split("T")[0],
     expiryDate: "",
-    paymentType: 'ONLINE',
+    paymentType: "ONLINE",
     shopMonthlyFee: "",
     ownerId: 0,
     storeId: "",
   });
 
+  const canSave = contract 
+    ? !!(formData?.shopMonthlyFee || formData?.shopMonthlyFee === 0)
+    : !!(formData?.ownerId && formData?.issueDate && formData?.storeId && (formData?.shopMonthlyFee || formData?.shopMonthlyFee === 0));
+
   useEffect(() => {
     if (contract) {
       setFormData({
         certificateNumber: contract.certificateNumber || "",
-        issueDate: contract.issueDate ? new Date(contract.issueDate).toISOString().split('T')[0] : "",
-        expiryDate: contract.expiryDate ? new Date(contract.expiryDate).toISOString().split('T')[0] : "",
+        issueDate: contract.issueDate
+          ? new Date(contract.issueDate).toISOString().split("T")[0]
+          : "",
+        expiryDate: contract.expiryDate
+          ? new Date(contract.expiryDate).toISOString().split("T")[0]
+          : "",
         paymentType: contract.paymentType,
         shopMonthlyFee: Number(contract.shopMonthlyFee) || 0,
         ownerId: contract.ownerId,
@@ -80,12 +98,13 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
     e.preventDefault();
     try {
       if (contract) {
-        // When updating, we might not want to send ownerId and storeId if they haven't changed
-        // or if the backend doesn't allow changing them.
-        const { ownerId, storeId, ...updateDto } = formData;
-        await updateContract.mutateAsync({ 
-          id: contract.id, 
-          dto: { ...updateDto, shopMonthlyFee: Number(formData.shopMonthlyFee) } as any 
+        await updateContract.mutateAsync({
+          id: contract.id,
+          dto: {
+            shopMonthlyFee: Number(formData.shopMonthlyFee),
+            paymentType: formData.paymentType,
+            certificateNumber: formData.certificateNumber,
+          } as any,
         });
         toast({
           title: t("common.success"),
@@ -94,9 +113,9 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
       } else {
         await createContract.mutateAsync({
           ...formData,
-          shopMonthlyFee: Number(formData.shopMonthlyFee)
+          shopMonthlyFee: Number(formData.shopMonthlyFee),
         } as any);
-        toast({
+        toast({ 
           title: t("common.created_successfully"),
         });
       }
@@ -125,18 +144,22 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
             </Label>
             <Select
               value={formData.ownerId ? String(formData.ownerId) : undefined}
-              onValueChange={(val) => setFormData({ ...formData, ownerId: Number(val) })}
-              disabled={!!contract}
-            >
+              onValueChange={(val) =>
+                setFormData({ ...formData, ownerId: Number(val) })
+              }
+              disabled={!!contract}>
               <SelectTrigger className="h-10 w-full">
                 <SelectValue placeholder="Tadbirkorni tanlang" />
               </SelectTrigger>
-              <SelectContent position="popper" sideOffset={4} className="w-(--radix-select-trigger-width)">
+              <SelectContent
+                position="popper"
+                sideOffset={4}
+                className="w-(--radix-select-trigger-width)">
                 <div className="px-2 py-2 border-b border-border/50 sticky top-0 bg-popover z-20">
                   <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input 
-                      placeholder="Ism bo'yicha qidirish..." 
+                    <Input
+                      placeholder="Ism bo'yicha qidirish..."
                       className="h-8 pl-8 text-xs border-border/50 focus-visible:ring-primary/20"
                       value={ownerSearch}
                       onChange={(e) => setOwnerSearch(e.target.value)}
@@ -144,19 +167,23 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
                     />
                   </div>
                 </div>
-                <div className="max-h-[200px] min-h-[100px] overflow-y-auto custom-scrollbar">
+                <div className="max-h-50 min-h-25 overflow-y-auto custom-scrollbar">
                   {}
                   {contract && contract.owner && (
-                    <SelectItem key={contract.owner.id} value={String(contract.owner.id)}>
+                    <SelectItem
+                      key={contract.owner.id}
+                      value={String(contract.owner.id)}>
                       {contract.owner.fullName}
                     </SelectItem>
                   )}
 
                   {ownersLoading ? (
-                    <div className="p-4 text-center text-xs text-muted-foreground italic">Yuklanmoqda...</div>
+                    <div className="p-4 text-center text-xs text-muted-foreground italic">
+                      Yuklanmoqda...
+                    </div>
                   ) : ownersData?.data?.length ? (
                     ownersData.data
-                      .filter(o => o.id !== contract?.ownerId)
+                      .filter((o) => o.id !== contract?.ownerId)
                       .map((owner) => (
                         <SelectItem key={owner.id} value={String(owner.id)}>
                           {owner.fullName}
@@ -171,8 +198,7 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
                         onClick={() => {
                           closeSidebar();
                           navigate("/owners");
-                        }}
-                      >
+                        }}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Yangi tadbirkor qo'shish
                       </Button>
@@ -185,24 +211,32 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
 
           {}
           <div className={cn("grid gap-2", !!contract && "cursor-not-allowed")}>
-            <Label className={cn("text-sm font-semibold flex items-center gap-2", !!contract && "cursor-not-allowed")}>
+            <Label
+              className={cn(
+                "text-sm font-semibold flex items-center gap-2",
+                !!contract && "cursor-not-allowed",
+              )}>
               <StoreIcon className="h-4 w-6" />
               {t("contracts.store")}
             </Label>
             <Select
               value={formData.storeId ? formData.storeId : undefined}
-              onValueChange={(val) => setFormData({ ...formData, storeId: val })}
-              disabled={!!contract}
-            >
+              onValueChange={(val) =>
+                setFormData({ ...formData, storeId: val })
+              }
+              disabled={!!contract}>
               <SelectTrigger className="h-10 w-full">
                 <SelectValue placeholder="Do'konni tanlang" />
               </SelectTrigger>
-              <SelectContent position="popper" sideOffset={4} className="w-(--radix-select-trigger-width)">
+              <SelectContent
+                position="popper"
+                sideOffset={4}
+                className="w-(--radix-select-trigger-width)">
                 <div className="px-2 py-2 border-b border-border/50 sticky top-0 bg-popover z-20">
                   <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input 
-                      placeholder="Raqam bo'yicha qidirish..." 
+                    <Input
+                      placeholder="Raqam bo'yicha qidirish..."
                       className="h-8 pl-8 text-xs border-border/50 focus-visible:ring-primary/20"
                       value={storeSearch}
                       onChange={(e) => setStoreSearch(e.target.value)}
@@ -210,17 +244,21 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
                     />
                   </div>
                 </div>
-                <div className="max-h-[200px] min-h-[100px] overflow-y-auto custom-scrollbar">
+                <div className="max-h-50 min-h-25 overflow-y-auto custom-scrollbar">
                   {}
                   {contract && contract.store && (
-                    <SelectItem key={contract.store.id} value={String(contract.store.id)}>
+                    <SelectItem
+                      key={contract.store.id}
+                      value={String(contract.store.id)}>
                       {contract.store.storeNumber} ({contract.store.area} m²)
                     </SelectItem>
                   )}
 
                   {storesLoading ? (
-                    <div className="p-4 text-center text-xs text-muted-foreground italic">Yuklanmoqda...</div>
-                  ) : (storesData?.data?.length) ? (
+                    <div className="p-4 text-center text-xs text-muted-foreground italic">
+                      Yuklanmoqda...
+                    </div>
+                  ) : storesData?.data?.length ? (
                     storesData.data
                       .filter((s: any) => s.id !== contract?.storeId)
                       .map((store: any) => (
@@ -237,8 +275,7 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
                         onClick={() => {
                           closeSidebar();
                           navigate("/stores");
-                        }}
-                      >
+                        }}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Yangi do'kon qo'shish
                       </Button>
@@ -250,16 +287,26 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className={cn("grid gap-2", !!contract && "cursor-not-allowed")}>
-              <Label htmlFor="certificateNumber" className={cn("text-sm font-semibold", !!contract && "cursor-not-allowed")}>
+            <div
+              className={cn("grid gap-2", !!contract && "cursor-not-allowed")}>
+              <Label
+                htmlFor="certificateNumber"
+                className={cn(
+                  "text-sm font-semibold",
+                  !!contract && "cursor-not-allowed",
+                )}>
                 {t("contracts.certificate_number")}
               </Label>
               <Input
                 id="certificateNumber"
                 placeholder="Masalan: 001-2024"
                 value={formData.certificateNumber}
-                disabled={!!contract}
-                onChange={(e) => setFormData({ ...formData, certificateNumber: e.target.value })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    certificateNumber: e.target.value,
+                  })
+                }
                 className="h-10 border-border/50 focus:ring-primary/20"
               />
             </div>
@@ -272,7 +319,9 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
                 type="number"
                 placeholder="0.00"
                 value={formData.shopMonthlyFee}
-                onChange={(e) => setFormData({ ...formData, shopMonthlyFee: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, shopMonthlyFee: e.target.value })
+                }
                 className="h-10 border-border/50 focus:ring-primary/20 font-bold"
                 required
               />
@@ -285,11 +334,15 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
                 {t("contracts.issue_date")}
               </Label>
               <DateTimePicker
-                date={formData.issueDate ? new Date(formData.issueDate) : undefined}
-                setDate={(d) => setFormData({ 
-                  ...formData, 
-                  issueDate: d ? format(d, 'yyyy-MM-dd') : '' 
-                })}
+                date={
+                  formData.issueDate ? new Date(formData.issueDate) : undefined
+                }
+                setDate={(d) =>
+                  setFormData({
+                    ...formData,
+                    issueDate: d ? format(d, "yyyy-MM-dd") : "",
+                  })
+                }
                 disabled={!!contract}
               />
             </div>
@@ -298,11 +351,18 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
                 {t("contracts.expiry_date")}
               </Label>
               <DateTimePicker
-                date={formData.expiryDate ? new Date(formData.expiryDate) : undefined}
-                setDate={(d) => setFormData({ 
-                  ...formData, 
-                  expiryDate: d ? format(d, 'yyyy-MM-dd') : '' 
-                })}
+                date={
+                  formData.expiryDate
+                    ? new Date(formData.expiryDate)
+                    : undefined
+                }
+                setDate={(d) =>
+                  setFormData({
+                    ...formData,
+                    expiryDate: d ? format(d, "yyyy-MM-dd") : "",
+                  })
+                }
+                disabled={!!contract}
               />
             </div>
           </div>
@@ -313,9 +373,9 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
             </Label>
             <Select
               value={formData.paymentType}
-              onValueChange={(val: 'ONLINE' | 'BANK') => setFormData({ ...formData, paymentType: val })}
-              disabled={!!contract}
-            >
+              onValueChange={(val: "ONLINE" | "BANK") =>
+                setFormData({ ...formData, paymentType: val })
+              }>
               <SelectTrigger className="h-10">
                 <SelectValue placeholder={t("contracts.payment_type")} />
               </SelectTrigger>
@@ -331,9 +391,8 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
       <div className="flex items-center gap-3 pt-6 pb-2 border-t border-border/50 mt-4 bg-background z-10">
         <Button
           type="submit"
-          disabled={isPending || !formData.ownerId || !formData.storeId}
-          className="w-full h-11 shadow-sm active:scale-[0.98] transition-all"
-        >
+          disabled={isPending || !canSave }
+          className="w-full h-11 shadow-sm active:scale-[0.98] transition-all">
           {isPending ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

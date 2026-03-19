@@ -24,7 +24,7 @@ export function FormSidebar({
 }: FormSidebarProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="sm:max-w-md border-l border-border/50 shadow-2xl p-0 flex flex-col">
+      <SheetContent side="right" className="sm:max-w-md border-l border-border/50 shadow-2xl px-0 flex flex-col">
         <div className="pb-0">
           <SheetHeader className="mb-0">
             <SheetTitle className="text-2xl font-bold tracking-tight">{title}</SheetTitle>

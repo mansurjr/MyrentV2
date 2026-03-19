@@ -2,7 +2,14 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { DataTable } from "@/components/DataTable";
 import { useContracts } from "../hooks/useContracts";
 import { columns } from "./columns";
-import { Search, Plus, FilterX, CreditCard, Landmark, FileSpreadsheet } from "lucide-react";
+import {
+  Search,
+  Plus,
+  FilterX,
+  CreditCard,
+  Landmark,
+  FileSpreadsheet,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useSidebarStore } from "@/store/useSidebarStore";
@@ -34,20 +41,26 @@ export function ContractsList() {
   const { openSidebar, closeSidebar } = useSidebarStore();
 
   const contractsHook = useContracts();
-  const { data, isLoading, refetch: refetchContracts } = contractsHook.useGetContracts({
+  const {
+    data,
+    isLoading,
+    refetch: refetchContracts,
+  } = contractsHook.useGetContracts({
     page,
     limit: pageSize,
     search: debouncedSearch,
     isActive: true,
     paid: paymentStatus === "all" ? undefined : paymentStatus === "paid",
-    paymentType: paymentType === "all" ? undefined : paymentType as 'ONLINE' | 'BANK',
+    paymentType:
+      paymentType === "all" ? undefined : (paymentType as "ONLINE" | "BANK"),
   });
   const reconciliationContractsQuery = getReconciliationContracts({
     page,
     limit: pageSize,
     search: debouncedSearch,
     isActive: true,
-    paymentType: paymentType === "all" ? undefined : paymentType as "ONLINE" | "BANK",
+    paymentType:
+      paymentType === "all" ? undefined : (paymentType as "ONLINE" | "BANK"),
   });
 
   const debtByContractId = useMemo(() => {
@@ -63,14 +76,14 @@ export function ContractsList() {
       const contractId = Number(rawContractId);
       if (!Number.isFinite(contractId)) continue;
 
-      const debt = Number(item.unpaid ?? item.debtAmount ?? item.debt ?? 0) || 0;
+      const debt =
+        Number(item.unpaid ?? item.debtAmount ?? item.debt ?? 0) || 0;
       result[contractId] = debt;
     }
 
     return result;
   }, [reconciliationContractsQuery.data]);
-  
-  // Reload data when tab becomes active
+
   useEffect(() => {
     const handleFocus = () => {
       refetchContracts();
@@ -81,20 +94,23 @@ export function ContractsList() {
       window.removeEventListener("focus", handleFocus);
     };
   }, [refetchContracts]);
-  
-  const handleEdit = useCallback((contract: Contract) => {
-    openSidebar({
-      title: t("contracts.edit"),
-      content: (
-        <ContractForm
-          contract={contract}
-          onSuccess={() => {
-            closeSidebar();
-          }}
-        />
-      ),
-    });
-  }, [openSidebar, t, closeSidebar]);
+
+  const handleEdit = useCallback(
+    (contract: Contract) => {
+      openSidebar({
+        title: t("contracts.edit"),
+        content: (
+          <ContractForm
+            contract={contract}
+            onSuccess={() => {
+              closeSidebar();
+            }}
+          />
+        ),
+      });
+    },
+    [openSidebar, t, closeSidebar],
+  );
 
   const handleAdd = useCallback(() => {
     openSidebar({
@@ -121,7 +137,7 @@ export function ContractsList() {
       paid: paymentStatus === "all" ? undefined : paymentStatus === "paid",
       paymentType: paymentType === "all" ? undefined : paymentType,
     };
-    
+
     const queryParams = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
       if (value !== undefined && value !== "") {
@@ -131,9 +147,12 @@ export function ContractsList() {
 
     const baseURL = `${window.location.origin}/api`;
     const url = `${baseURL}/contracts/export/excel?${queryParams.toString()}`;
-    
+
     try {
-      await downloadExcelWithAuth(url, `contracts_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+      await downloadExcelWithAuth(
+        url,
+        `contracts_${format(new Date(), "yyyy-MM-dd")}.xlsx`,
+      );
     } catch (error) {
       console.error(error);
     }
@@ -150,10 +169,10 @@ export function ContractsList() {
     <div className="space-y-6 p-6 h-full flex flex-col min-h-0">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between shrink-0">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t("nav.contracts")}</h1>
-          <p className="text-muted-foreground">
-            {t("contracts.description")}
-          </p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {t("nav.contracts")}
+          </h1>
+          <p className="text-muted-foreground">{t("contracts.description")}</p>
         </div>
       </div>
 
@@ -171,7 +190,12 @@ export function ContractsList() {
           />
         </div>
 
-        <Select value={paymentStatus} onValueChange={(val) => { setPaymentStatus(val); setPage(1); }}>
+        <Select
+          value={paymentStatus}
+          onValueChange={(val) => {
+            setPaymentStatus(val);
+            setPage(1);
+          }}>
           <SelectTrigger className="h-10 w-full sm:w-45 bg-background border-border/50 shadow-sm">
             <div className="flex items-center gap-2">
               <CreditCard className="h-4 w-4 text-muted-foreground" />
@@ -185,7 +209,12 @@ export function ContractsList() {
           </SelectContent>
         </Select>
 
-        <Select value={paymentType} onValueChange={(val) => { setPaymentType(val); setPage(1); }}>
+        <Select
+          value={paymentType}
+          onValueChange={(val) => {
+            setPaymentType(val);
+            setPage(1);
+          }}>
           <SelectTrigger className="h-10 w-full sm:w-45 bg-background border-border/50 shadow-sm">
             <div className="flex items-center gap-2">
               <Landmark className="h-4 w-4 text-muted-foreground" />
@@ -199,7 +228,11 @@ export function ContractsList() {
           </SelectContent>
         </Select>
         {(search || paymentStatus !== "all" || paymentType !== "all") && (
-          <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearFilters}
+            className="text-muted-foreground">
             <FilterX className="mr-2 h-4 w-4" />
             {t("contracts.clear_filters")}
           </Button>
@@ -209,13 +242,12 @@ export function ContractsList() {
           <Plus className="mr-2 h-4 w-4" />
           {t("common.add_new")}
         </Button>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           size="icon"
           onClick={handleExport}
           className="bg-background border-border/50 hover:bg-muted/50 shadow-sm"
-          title={t("common.export_excel")}
-        >
+          title={t("common.export_excel")}>
           <FileSpreadsheet className="h-4 w-4 text-green-600" />
         </Button>
       </div>
@@ -224,22 +256,31 @@ export function ContractsList() {
         {isLoading ? (
           <div className="grid gap-6 py-20 place-items-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            <p className="text-muted-foreground font-medium">{t("common.loading")}</p>
+            <p className="text-muted-foreground font-medium">
+              {t("common.loading")}
+            </p>
           </div>
         ) : (
-            <DataTable
-              columns={contractColumns}
-              data={(Array.isArray(data) ? data : data?.data) || []}
-              pageCount={data?.pagination?.totalPages || (data?.total ? Math.ceil(data.total / pageSize) : 1)}
-              pageIndex={page}
-              onPageChange={setPage}
-              pageSize={pageSize}
-              onPageSizeChange={(size) => {
-                setPageSize(size);
-                setPage(1);
-              }}
-              total={data?.pagination?.total || data?.total || (Array.isArray(data) ? data.length : 0)}
-            />
+          <DataTable
+            columns={contractColumns}
+            data={(Array.isArray(data) ? data : data?.data) || []}
+            pageCount={
+              data?.pagination?.totalPages ||
+              (data?.total ? Math.ceil(data.total / pageSize) : 1)
+            }
+            pageIndex={page}
+            onPageChange={setPage}
+            pageSize={pageSize}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+            total={
+              data?.pagination?.total ||
+              data?.total ||
+              (Array.isArray(data) ? data.length : 0)
+            }
+          />
         )}
       </div>
     </div>
