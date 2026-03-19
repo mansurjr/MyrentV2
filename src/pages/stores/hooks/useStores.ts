@@ -48,7 +48,7 @@ export const useStores = () => {
     });
 
   const checkStoreNumber = async (storeNumber: string, excludeId?: string) => {
-    const response = await baseApi.get(`/stores/check-number/${storeNumber}`, {
+    const response = await baseApi.get(`/stores/check-number/${encodeURIComponent(storeNumber)}`, {
       params: excludeId ? { excludeId } : {}
     });
     return response.data;
