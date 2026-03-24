@@ -22,7 +22,6 @@ import {
 import { useStores } from "../../stores/hooks/useStores";
 import { useOwners } from "../../owners/hooks/useOwners";
 import { useContracts } from "../../contracts/hooks/useContracts";
-import { useStatistics } from "../../statistics/hooks/useStatistics";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useToast } from "@/hooks/use-toast";
 import baseApi from "@/api";
@@ -74,6 +73,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import type { Attendance } from "@/types/api-responses";
 
 type FilterType = "store" | "owner" | "stall";
 
@@ -82,17 +82,51 @@ const toNumber = (value: unknown, fallback = 0) => {
   return Number.isFinite(numeric) ? numeric : fallback;
 };
 
-const getSummaryContractId = (item: Record<string, unknown>) =>
-  toNumber(item.contractId ?? item.id, NaN);
+const isFuturePeriod = (year: number, month: number, referenceDate: Date) => {
+  const currentYear = referenceDate.getFullYear();
+  const currentMonthIndex = referenceDate.getMonth() + 1;
+  return year > currentYear || (year === currentYear && month > currentMonthIndex);
+};
 
-const getSummaryUnpaid = (item: Record<string, unknown>) =>
-  toNumber(item.unpaid ?? item.debtAmount ?? item.debt, 0);
+const getContractPeriodMetrics = (
+  paymentPeriods?: Array<{
+    year: number;
+    month: number;
+    status: string;
+    amount: string | number;
+  }>,
+) => {
+  if (!paymentPeriods?.length) {
+    return {
+      paidMonths: 0,
+      unpaidPastMonths: 0,
+      unpaidPastAmount: 0,
+    };
+  }
 
-const getSummaryUnpaidMonths = (item: Record<string, unknown>) =>
-  toNumber(item.unpaidMonths ?? item.debtMonths ?? item.pendingMonths ?? item.pendingCount, 0);
+  const now = new Date();
 
-const getSummaryPaidMonths = (item: Record<string, unknown>) =>
-  toNumber(item.paidMonths ?? item.paidCount ?? item.paid, 0);
+  return paymentPeriods.reduce(
+    (acc, period) => {
+      if (period.status === "PAID") {
+        acc.paidMonths += 1;
+        return acc;
+      }
+
+      if (period.status === "PENDING" && !isFuturePeriod(period.year, period.month, now)) {
+        acc.unpaidPastMonths += 1;
+        acc.unpaidPastAmount += toNumber(period.amount, 0);
+      }
+
+      return acc;
+    },
+    {
+      paidMonths: 0,
+      unpaidPastMonths: 0,
+      unpaidPastAmount: 0,
+    },
+  );
+};
 
 export function ReconciliationView() {
   const { t } = useTranslation();
@@ -100,7 +134,6 @@ export function ReconciliationView() {
   const { useGetStores } = useStores();
   const { useGetOwners } = useOwners();
   const { useGetContracts, payContract, automatePaymentRedirect, updatePeriod, generateFuturePeriods } = useContracts();
-  const { getReconciliationContracts } = useStatistics();
 
   const [filterType, setFilterType] = useState<FilterType>("store");
   const [searchTerm, setSearchTerm] = useState("");
@@ -160,19 +193,6 @@ export function ReconciliationView() {
     isActive: showInactive ? false : true,
   });
 
-  const reconciliationContractsQuery = getReconciliationContracts(
-    {
-      storeId: filterType === "store" ? selectedStoreId || undefined : undefined,
-      ownerId: filterType === "owner" ? selectedOwnerId || undefined : undefined,
-      isActive: showInactive ? false : true,
-    },
-    {
-      enabled:
-        (filterType === "store" && !!selectedStoreId) ||
-        (filterType === "owner" && !!selectedOwnerId),
-    },
-  );
-
   // Reload data when tab becomes active
   useEffect(() => {
     const handleFocus = () => {
@@ -204,30 +224,6 @@ export function ReconciliationView() {
     () => contractsData?.data?.find((c) => c.id === selectedContractId),
     [contractsData, selectedContractId],
   );
-
-  const reconciliationSummaryByContractId = useMemo(() => {
-    const map = new Map<number, { unpaidAmount: number; unpaidMonths: number; paidMonths: number }>();
-    const summary = reconciliationContractsQuery.data?.summary;
-
-    if (!Array.isArray(summary)) {
-      return map;
-    }
-
-    for (const rawItem of summary) {
-      if (!rawItem || typeof rawItem !== "object") continue;
-      const item = rawItem as Record<string, unknown>;
-      const contractId = getSummaryContractId(item);
-      if (!Number.isFinite(contractId)) continue;
-
-      map.set(contractId, {
-        unpaidAmount: getSummaryUnpaid(item),
-        unpaidMonths: getSummaryUnpaidMonths(item),
-        paidMonths: getSummaryPaidMonths(item),
-      });
-    }
-
-    return map;
-  }, [reconciliationContractsQuery.data]);
 
   const paymentHistory = useMemo(() => {
     if (!selectedContract || !selectedContract.paymentPeriods) return [];
@@ -313,18 +309,12 @@ export function ReconciliationView() {
     const expiryDate = selectedContract.expiryDate
       ? parseISO(selectedContract.expiryDate)
       : null;
-    const selectedSummary = reconciliationSummaryByContractId.get(selectedContract.id);
+    const selectedMetrics = getContractPeriodMetrics(selectedContract.paymentPeriods);
 
-    const totalPaidMonths =
-      selectedSummary?.paidMonths ?? 0;
-    const totalUnpaidPastMonths =
-      selectedSummary?.unpaidMonths ?? 0;
-    const totalDebtAmount =
-      selectedSummary?.unpaidAmount ?? 0;
-    const totalDebt = toNumber(
-      reconciliationContractsQuery.data?.totalDebt,
-      totalDebtAmount,
-    );
+    const totalPaidMonths = selectedMetrics.paidMonths;
+    const totalUnpaidPastMonths = selectedMetrics.unpaidPastMonths;
+    const totalDebtAmount = selectedMetrics.unpaidPastAmount;
+    const totalDebt = totalDebtAmount;
 
     return {
       monthsRemaining: expiryDate
@@ -335,7 +325,7 @@ export function ReconciliationView() {
       totalDebtAmount,
       totalDebt,
     };
-  }, [selectedContract, paymentHistory, reconciliationSummaryByContractId, reconciliationContractsQuery.data]);
+  }, [selectedContract]);
 
   const handleFilterTypeChange = (type: FilterType) => {
     setFilterType(type);
@@ -711,7 +701,7 @@ export function ReconciliationView() {
                     <div className="py-10 text-center text-muted-foreground font-medium">Ma'lumot topilmadi.</div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-border/50">
-                      {attendancesData?.data?.map((att: any) => (
+                      {attendancesData?.data?.map((att: Attendance) => (
                         <div key={att.id} className="bg-background p-4 flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className={cn("p-2 rounded-lg", att.status === 'PAID' ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600")}>
@@ -802,9 +792,7 @@ export function ReconciliationView() {
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {contractsData?.data?.map((contract) => {
-                        const summary = reconciliationSummaryByContractId.get(contract.id);
-                        const contractDebtAmount =
-                          summary?.unpaidAmount ?? 0;
+                        const contractDebtAmount = getContractPeriodMetrics(contract.paymentPeriods).unpaidPastAmount;
 
                         return (
                         <button
@@ -1068,7 +1056,9 @@ export function ReconciliationView() {
                           </Label>
                           <Select
                             value={statusFilter}
-                            onValueChange={(val: any) => setStatusFilter(val)}>
+                            onValueChange={(val) =>
+                              setStatusFilter(val as "all" | "paid" | "debt")
+                            }>
                             <SelectTrigger className="h-8 w-27.5 text-xs font-bold">
                               <SelectValue />
                             </SelectTrigger>
