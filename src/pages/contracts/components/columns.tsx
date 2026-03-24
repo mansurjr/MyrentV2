@@ -87,7 +87,7 @@ const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[200px]">
+        <DropdownMenuContent align="end" className="w-50">
           <DropdownMenuLabel>{t("common.data")}</DropdownMenuLabel>
           {!isArchived && (
             <>

@@ -24,6 +24,7 @@ import { useOwners } from "../../owners/hooks/useOwners";
 import { useContracts } from "../../contracts/hooks/useContracts";
 import { useStatistics } from "../../statistics/hooks/useStatistics";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useToast } from "@/hooks/use-toast";
 import baseApi from "@/api";
 import { useStalls } from "../../stalls/hooks/useStalls";
 import { useAttendances } from "../../attendances/hooks/useAttendances";
@@ -95,9 +96,10 @@ const getSummaryPaidMonths = (item: Record<string, unknown>) =>
 
 export function ReconciliationView() {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const { useGetStores } = useStores();
   const { useGetOwners } = useOwners();
-  const { useGetContracts, payContract, automatePaymentRedirect, updatePeriod } = useContracts();
+  const { useGetContracts, payContract, automatePaymentRedirect, updatePeriod, generateFuturePeriods } = useContracts();
   const { getReconciliationContracts } = useStatistics();
 
   const [filterType, setFilterType] = useState<FilterType>("store");
@@ -123,6 +125,8 @@ export function ReconciliationView() {
   const [editingPeriodId, setEditingPeriodId] = useState<string | null>(null);
   const [tempAmount, setTempAmount] = useState<string>("");
   const [isManualPayOpen, setIsManualPayOpen] = useState(false);
+  const [isAdvancePayOpen, setIsAdvancePayOpen] = useState(false);
+  const [advanceMonths, setAdvanceMonths] = useState<string>("1");
 
   const debouncedSearch = useDebounce(searchTerm, 400);
 
@@ -232,14 +236,8 @@ export function ReconciliationView() {
     const currentYear = now.getFullYear();
     const currentMonthIndex = now.getMonth() + 1; // 1-12
 
-    // Filter and sort payment periods
+    // Sort payment periods so past, current and future months are visible in one timeline.
     const periods = selectedContract.paymentPeriods
-      .filter((p) => {
-        // Show only current and past months
-        if (p.year > currentYear) return false;
-        if (p.year === currentYear && p.month > currentMonthIndex) return false;
-        return true;
-      })
       .sort((a, b) => {
         if (a.year !== b.year) return a.year - b.year; // Ascending year
         return a.month - b.month; // Ascending month
@@ -248,6 +246,9 @@ export function ReconciliationView() {
     return periods.map((period) => {
       const periodDate = new Date(period.year, period.month - 1);
       const isPaid = period.status === "PAID";
+      const isFuture =
+        period.year > currentYear ||
+        (period.year === currentYear && period.month > currentMonthIndex);
       
       // Determine if it's the current month (for highlighting)
       const isCurrent =
@@ -258,9 +259,9 @@ export function ReconciliationView() {
         date: periodDate,
         label: format(periodDate, "MMMM yyyy", { locale: uz }),
         isPaid,
-        isPast: !isPaid, 
+        isPast: !isPaid && !isFuture,
         isCurrent,
-        isFuture: false, // We filtered future months out
+        isFuture,
         status: period.status,
         amount: period.amount,
         isEdit: period.isEdit
@@ -285,11 +286,25 @@ export function ReconciliationView() {
     if (statusFilter === "paid") {
       filtered = filtered.filter((m) => m.isPaid);
     } else if (statusFilter === "debt") {
-      filtered = filtered.filter((m) => !m.isPaid);
+      filtered = filtered.filter((m) => !m.isPaid && !m.isFuture);
     }
     
     return filtered;
   }, [paymentHistory, selectedYear, statusFilter]);
+
+  const hasFuturePeriods = useMemo(() => {
+    if (!selectedContract?.paymentPeriods?.length) return false;
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonthIndex = now.getMonth() + 1;
+
+    return selectedContract.paymentPeriods.some(
+      (period) =>
+        period.year > currentYear ||
+        (period.year === currentYear && period.month > currentMonthIndex),
+    );
+  }, [selectedContract]);
 
   const stats = useMemo(() => {
     if (!selectedContract || !selectedContract.paymentPeriods) return null;
@@ -364,6 +379,77 @@ export function ReconciliationView() {
       console.error("Payment error:", error);
     } finally {
       setIsRedirecting(false);
+    }
+  };
+
+  const handleAdvancePayment = async () => {
+    if (!selectedContract) return;
+
+    const months = Number(advanceMonths);
+    if (!Number.isFinite(months) || months < 1 || months > 12) {
+      toast({
+        variant: "destructive",
+        title: t("common.error"),
+        description: t("reconciliation.advance_months_validation"),
+      });
+      return;
+    }
+
+    try {
+      const generated = await generateFuturePeriods.mutateAsync({
+        id: selectedContract.id,
+        dto: { months },
+      });
+
+      const refreshed = await refetchContracts();
+      const refreshedContract = refreshed.data?.data?.find(
+        (contract) => contract.id === selectedContract.id,
+      );
+
+      setIsAdvancePayOpen(false);
+      setAdvanceMonths("1");
+
+      if (selectedContract.paymentType === "ONLINE") {
+        const generatedKeys = new Set(
+          (generated.generatedPeriods || []).map((period) => `${period.year}-${period.month}`),
+        );
+
+        const generatedPendingPeriodIds =
+          refreshedContract?.paymentPeriods
+            ?.filter((period) => period.status === "PENDING")
+            ?.filter((period) => generatedKeys.has(`${period.year}-${period.month}`))
+            ?.sort((a, b) => {
+              if (a.year !== b.year) return a.year - b.year;
+              return a.month - b.month;
+            })
+            ?.map((period) => period.id) || [];
+
+        if (generatedPendingPeriodIds.length > 0) {
+          toast({
+            title: t("common.success"),
+            description: t("reconciliation.processing_payment"),
+          });
+          await automatePaymentRedirect(selectedContract.id, generatedPendingPeriodIds);
+        } else {
+          toast({
+            title: t("common.success"),
+            description: t("reconciliation.advance_periods_generated"),
+          });
+        }
+        return;
+      }
+
+      toast({
+        title: t("common.success"),
+        description: t("reconciliation.advance_periods_generated"),
+      });
+    } catch (error) {
+      console.error("Advance payment generation error:", error);
+      toast({
+        variant: "destructive",
+        title: t("common.error"),
+        description: t("reconciliation.advance_payment_failed"),
+      });
     }
   };
 
@@ -857,6 +943,19 @@ export function ReconciliationView() {
                           </div>
                         </div>
                         <div className="space-y-3 pt-2">
+                          {selectedContract.isActive && !hasFuturePeriods && (
+                            <Button
+                              variant="outline"
+                              onClick={() => {
+                                setAdvanceMonths("1");
+                                setIsAdvancePayOpen(true);
+                              }}
+                              className="w-full font-bold"
+                            >
+                              Oldindan to'lash
+                            </Button>
+                          )}
+
                           {stats!.totalDebtAmount > 0 &&
                           (selectedContract.paymentType === "BANK" ||
                             selectedContract.paymentPeriods?.some((p) => p.status === "PENDING")) ? (
@@ -949,7 +1048,7 @@ export function ReconciliationView() {
                           <Select
                             value={selectedYear}
                             onValueChange={setSelectedYear}>
-                            <SelectTrigger className="h-8 w-[90px] text-xs font-bold">
+                            <SelectTrigger className="h-8 w-22.5 text-xs font-bold">
                               <SelectValue placeholder={t("reconciliation.year")} />
                             </SelectTrigger>
                             <SelectContent>
@@ -970,7 +1069,7 @@ export function ReconciliationView() {
                           <Select
                             value={statusFilter}
                             onValueChange={(val: any) => setStatusFilter(val)}>
-                            <SelectTrigger className="h-8 w-[110px] text-xs font-bold">
+                            <SelectTrigger className="h-8 w-27.5 text-xs font-bold">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -1035,6 +1134,11 @@ export function ReconciliationView() {
                                         {t("common.current")}
                                       </span>
                                     )}
+                                    {month.isFuture && (
+                                      <span className="ml-2 text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-sm uppercase">
+                                        Kelgusi oy
+                                      </span>
+                                    )}
                                   </p>
                                   <div className="flex items-center gap-2">
                                     <p className="text-xs text-muted-foreground">
@@ -1044,7 +1148,7 @@ export function ReconciliationView() {
                                           ? t("reconciliation.unpaid_debt")
                                           : t("reconciliation.future_payment")}
                                     </p>
-                                    {!month.isPaid && month.isPast && (
+                                    {!month.isPaid && (
                                         <button
                                           onClick={async () => {
                                             if (!selectedContract) return;
@@ -1169,7 +1273,7 @@ export function ReconciliationView() {
       </AlertDialog>
 
       <Dialog open={!!editingPeriodId} onOpenChange={(open) => !open && setEditingPeriodId(null)}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-106.25">
           <DialogHeader>
             <DialogTitle>{t("contracts.edit_amount") || "Изменить сумму"}</DialogTitle>
             <DialogDescription>
@@ -1217,6 +1321,59 @@ export function ReconciliationView() {
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 t("common.save")
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAdvancePayOpen} onOpenChange={setIsAdvancePayOpen}>
+        <DialogContent className="sm:max-w-106.25">
+          <DialogHeader>
+            <DialogTitle>Oldindan to'lash</DialogTitle>
+            <DialogDescription>
+              {t("reconciliation.select_months")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="advanceMonths">{t("contracts.months_count")}</Label>
+              <Select value={advanceMonths} onValueChange={setAdvanceMonths}>
+                <SelectTrigger id="advanceMonths">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 12 }, (_, index) => {
+                    const value = String(index + 1);
+                    return (
+                      <SelectItem key={value} value={value}>
+                        {value}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsAdvancePayOpen(false)}
+              disabled={generateFuturePeriods.isPending}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              onClick={handleAdvancePayment}
+              disabled={generateFuturePeriods.isPending}
+            >
+              {generateFuturePeriods.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t("common.loading")}
+                </>
+              ) : (
+                t("common.confirm")
               )}
             </Button>
           </DialogFooter>

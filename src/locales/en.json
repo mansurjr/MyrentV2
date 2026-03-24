@@ -136,7 +136,10 @@
     "pay_via_click": "Pay via Click",
     "pay_via_payme": "Pay via Payme",
     "processing_payment": "Redirecting to payment...",
-    "payment_intent_desc": "Select payment method and number of months"
+    "payment_intent_desc": "Select payment method and number of months",
+    "advance_months_validation": "Months count must be between 1 and 12",
+    "advance_periods_generated": "Future payment periods were generated",
+    "advance_payment_failed": "Failed to generate future payment periods"
   },
   "contracts": {
     "title": "Contracts",

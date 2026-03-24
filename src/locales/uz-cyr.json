@@ -117,7 +117,10 @@
     "pay_via_click": "Click орқали тўлаш",
     "pay_via_payme": "Payme орқали тўлаш",
     "processing_payment": "Тўловга йўналтирилмоқда...",
-    "payment_intent_desc": "Тўлов тури ва ойлар сонини танланг"
+    "payment_intent_desc": "Тўлов тури ва ойлар сонини танланг",
+    "advance_months_validation": "Ойлар сони 1 дан 12 гача бўлиши керак",
+    "advance_periods_generated": "Келгуси ойлар учун тўлов даврлари яратилди",
+    "advance_payment_failed": "Олдиндан тўлов даврларини яратишда хатолик юз берди"
   },
   "map": {
     "details": "маълумотлари",

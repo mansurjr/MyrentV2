@@ -49,6 +49,18 @@ export interface IPaymentUrlsResponse {
   url: string;
 }
 
+export interface IGenerateFuturePeriodsDto {
+  months: number;
+}
+
+export interface IGenerateFuturePeriodsResponse {
+  contractId: number;
+  generatedPeriods: Array<{
+    year: number;
+    month: number;
+  }>;
+}
+
 export const useContracts = () => {
   const queryClient = useQueryClient();
 
@@ -135,6 +147,20 @@ export const useContracts = () => {
     },
   });
 
+  const generateFuturePeriods = useMutation({
+    mutationFn: async ({ id, dto }: { id: number; dto: IGenerateFuturePeriodsDto }) => {
+      const response = await baseApi.post<IGenerateFuturePeriodsResponse>(
+        `/contracts/${id}/future-periods`,
+        dto,
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contracts"] });
+      queryClient.invalidateQueries({ queryKey: ["statistics", "reconciliation-contracts"] });
+    },
+  });
+
   const getPaymentUrl = async (id: number, periodIds: string[], method?: string) => {
     const response = await baseApi.post<{ url: string }>(`/contracts/${id}/payment-url`, {
       periodIds,
@@ -183,6 +209,7 @@ export const useContracts = () => {
     deleteContract,
     payContract,
     manualPayContract,
+    generateFuturePeriods,
     getPaymentUrl,
     getPaymentUrls,
     automatePaymentRedirect,

@@ -136,7 +136,10 @@
     "pay_via_click": "Click orqali to'lash",
     "pay_via_payme": "Payme orqali to'lash",
     "processing_payment": "To'lovga yo'naltirilmoqda...",
-    "payment_intent_desc": "To'lov turi va oylar sonini tanlang"
+    "payment_intent_desc": "To'lov turi va oylar sonini tanlang",
+    "advance_months_validation": "Oylar soni 1 dan 12 gacha bo'lishi kerak",
+    "advance_periods_generated": "Kelgusi oylar uchun to'lov davrlari yaratildi",
+    "advance_payment_failed": "Oldindan to'lov davrlarini yaratishda xatolik yuz berdi"
   },
   "contracts": {
     "title": "Shartnomalar",
