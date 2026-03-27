@@ -101,7 +101,12 @@ export function ManualPayDialog({
                 min={1}
                 value={formData.months}
                 onChange={(e) =>
-                  setFormData({ ...formData, months: parseInt(e.target.value) })
+                  setFormData({
+                    ...formData,
+                    months: Number.isFinite(Number(e.target.value))
+                      ? Number(e.target.value)
+                      : 1,
+                  })
                 }
                 required
               />

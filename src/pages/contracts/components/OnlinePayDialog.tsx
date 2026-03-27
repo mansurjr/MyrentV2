@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { resolveAvailablePaymentMethods } from "@/lib/payment";
 
 interface OnlinePayDialogProps {
   contractId: number;
@@ -20,6 +21,7 @@ interface OnlinePayDialogProps {
   onOpenChange: (open: boolean) => void;
   initialMonths?: number;
   initialStartMonth?: string;
+  availableMethods?: Array<"click" | "payme">;
 }
 
 export function OnlinePayDialog({
@@ -28,14 +30,14 @@ export function OnlinePayDialog({
   onOpenChange,
   initialMonths = 1,
   initialStartMonth,
+  availableMethods,
 }: OnlinePayDialogProps) {
   const { t } = useTranslation();
   const { getPaymentUrls } = useContracts();
   const [months, setMonths] = useState(initialMonths);
   const [startMonth, setStartMonth] = useState(initialStartMonth || "");
   const [loading, setLoading] = useState(false);
-
-  const isMyRent = window.location.hostname.includes("myrent.uz");
+  const resolvedMethods = resolveAvailablePaymentMethods(availableMethods);
 
   const handleRedirect = async (selectedMethod: 'CLICK' | 'PAYME') => {
     setLoading(true);
@@ -104,7 +106,7 @@ export function OnlinePayDialog({
               </span>
             </Button>
 
-            {isMyRent && (
+            {resolvedMethods.includes("payme") && (
               <Button 
                   className={cn(
                     "w-full h-14 flex flex-col items-center justify-center gap-1 border-2 transition-all group font-bold text-white bg-[#00BAFF] hover:bg-[#00BAFF]/90 border-[#00BAFF]"

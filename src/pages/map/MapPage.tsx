@@ -18,7 +18,6 @@ import {
   CreditCard,
 } from "lucide-react";
 import { useAttendances } from "../attendances/hooks/useAttendances";
-import baseApi from "@/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -39,13 +38,21 @@ import {
 } from "@/components/ui/select";
 import { format } from "date-fns";
 import { uz } from "date-fns/locale";
+import { useToast } from "@/hooks/use-toast";
+import { getAdminAttendancePaymentUrl } from "@/api/payments";
+import { getApiErrorMessage, getApiErrorStatus } from "@/lib/api-error";
+import { usePaymentMethodState } from "@/hooks/usePaymentMethodState";
+import { PaymentMethodDialog } from "@/components/payment/PaymentMethodDialog";
 
 export default function MapPage() {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const [selectedItem, setSelectedItem] = useState<{ type: 'store' | 'stall', data: any } | null>(null);
   const [storeSearch, setStoreSearch] = useState("");
   const [stallSearch, setStallSearch] = useState("");
   const [selectedSection, setSelectedSection] = useState<string>("all");
+  const [isAttendancePaymentDialogOpen, setIsAttendancePaymentDialogOpen] = useState(false);
+  const [isContractPaymentDialogOpen, setIsContractPaymentDialogOpen] = useState(false);
   const debouncedStoreSearch = useDebounce(storeSearch, 500);
   const debouncedStallSearch = useDebounce(stallSearch, 500);
   
@@ -55,8 +62,16 @@ export default function MapPage() {
   const { automatePaymentRedirect, useGetContract } = useContracts();
   const { createAttendance } = useAttendances();
 
-  const { data: storesData, isLoading: storesLoading } = useGetStores({ limit: 1000, withContracts: true });
-  const { data: stallsData, isLoading: stallsLoading } = useGetStalls({ limit: 1000 });
+  const {
+    data: storesData,
+    isLoading: storesLoading,
+    refetch: refetchStores,
+  } = useGetStores({ limit: 1000, withContracts: true });
+  const {
+    data: stallsData,
+    isLoading: stallsLoading,
+    refetch: refetchStalls,
+  } = useGetStalls({ limit: 1000 });
   const { data: sectionsData } = useGetSections();
 
   const stores = useMemo(() => {
@@ -85,7 +100,11 @@ export default function MapPage() {
     return stallsData?.data?.find(s => s.id === selectedItem.data.id) || selectedItem.data;
   }, [selectedItem, storesData, stallsData]);
 
-  const { data: contractDetail, isLoading: isContractLoading } = useGetContract(itemData?.contracts?.[0]?.id);
+  const {
+    data: contractDetail,
+    isLoading: isContractLoading,
+    refetch: refetchContractDetail,
+  } = useGetContract(itemData?.contracts?.[0]?.id);
 
   const todayAttendance = useMemo(() => {
     if (selectedItem?.type !== 'stall' || !itemData) return null;
@@ -94,6 +113,10 @@ export default function MapPage() {
       format(new Date(a.date), "yyyy-MM-dd") === todayStr
     );
   }, [selectedItem, itemData]);
+  const attendancePayment = usePaymentMethodState(todayAttendance?.availableMethods ?? null);
+  const contractPayment = usePaymentMethodState(
+    itemData?.contracts?.[0]?.availableMethods ?? contractDetail?.availableMethods ?? null,
+  );
 
   const handleQuickAttendance = async () => {
     if (selectedItem?.type !== 'stall' || !itemData) return;
@@ -111,23 +134,54 @@ export default function MapPage() {
   };
 
   const handlePay = async () => {
-    if (!todayAttendance) return;
-    const isMyRent = window.location.hostname.includes("myrent.uz");
-    const type = isMyRent ? 'payme' : 'click';
+    if (!todayAttendance || attendancePayment.paymentUrlLoading) return;
+    if (!attendancePayment.selectedMethod) {
+      attendancePayment.setPaymentError("To'lov usulini tanlang");
+      return;
+    }
+
+    attendancePayment.setPaymentError(null);
+    attendancePayment.setPaymentUrlLoading(true);
     try {
-      const response = await baseApi.get(`/attendances/${todayAttendance.id}/pay/`, {
-        params: { type },
-      });
-      if (response.data.url) {
-        window.open(response.data.url, '_blank');
+      const response = await getAdminAttendancePaymentUrl(
+        todayAttendance.id,
+        attendancePayment.selectedMethod,
+      );
+      if (response.url) {
+        setIsAttendancePaymentDialogOpen(false);
+        window.open(response.url, '_blank');
       }
     } catch (error) {
-      console.error("Payment error:", error);
+      const status = getApiErrorStatus(error);
+      if (status === 400 || status === 409) {
+        await refetchStalls();
+      }
+
+      toast({
+        title: t("common.error"),
+        description: getApiErrorMessage(
+          error,
+          "To'lov holati yangilandi. Iltimos, rastani qayta tekshirib ko'ring.",
+        ),
+        variant: "destructive",
+      });
+      attendancePayment.setPaymentError(
+        getApiErrorMessage(
+          error,
+          "To'lov holati yangilandi. Iltimos, rastani qayta tekshirib ko'ring.",
+        ),
+      );
+    } finally {
+      attendancePayment.setPaymentUrlLoading(false);
     }
   };
 
   const handleContractPay = async () => {
-    if (!itemData?.contracts?.[0] || !contractDetail?.paymentPeriods) return;
+    if (!itemData?.contracts?.[0] || !contractDetail?.paymentPeriods || contractPayment.paymentUrlLoading) return;
+    if (!contractPayment.selectedMethod) {
+      contractPayment.setPaymentError("To'lov usulini tanlang");
+      return;
+    }
     
     const contract = itemData.contracts[0];
     const now = new Date();
@@ -141,7 +195,34 @@ export default function MapPage() {
     );
 
     if (currentPeriod) {
-      await automatePaymentRedirect(contract.id, [currentPeriod.id]);
+      contractPayment.setPaymentError(null);
+      contractPayment.setPaymentUrlLoading(true);
+      try {
+        await automatePaymentRedirect(contract.id, [currentPeriod.id], contractPayment.selectedMethod);
+        setIsContractPaymentDialogOpen(false);
+      } catch (error) {
+        const status = getApiErrorStatus(error);
+        if (status === 400 || status === 409) {
+          await Promise.all([refetchContractDetail(), refetchStores()]);
+        }
+
+        toast({
+          title: t("common.error"),
+          description: getApiErrorMessage(
+            error,
+            "To'lov holati yangilandi. Iltimos, shartnomani qayta tekshirib ko'ring.",
+          ),
+          variant: "destructive",
+        });
+        contractPayment.setPaymentError(
+          getApiErrorMessage(
+            error,
+            "To'lov holati yangilandi. Iltimos, shartnomani qayta tekshirib ko'ring.",
+          ),
+        );
+      } finally {
+        contractPayment.setPaymentUrlLoading(false);
+      }
     }
   };
 
@@ -436,8 +517,12 @@ export default function MapPage() {
               ) : todayAttendance.status === 'UNPAID' ? (
                 <div className="flex flex-col gap-2 w-full">
                   <Button 
-                    onClick={handlePay} 
+                    onClick={() => {
+                      attendancePayment.setPaymentError(null);
+                      setIsAttendancePaymentDialogOpen(true);
+                    }}
                     className="bg-blue-600 hover:bg-blue-700 font-bold w-full"
+                    disabled={attendancePayment.paymentUrlLoading}
                   >
                     <CreditCard className="h-4 w-4 mr-2" />
                     {t("common.pay")}
@@ -455,9 +540,12 @@ export default function MapPage() {
               {!itemData.paidCurrentMonth ? (
                 <div className="flex flex-col gap-2 w-full">
                   <Button 
-                    onClick={handleContractPay}
+                    onClick={() => {
+                      contractPayment.setPaymentError(null);
+                      setIsContractPaymentDialogOpen(true);
+                    }}
                     className="bg-blue-600 hover:bg-blue-700 font-bold w-full"
-                    disabled={isContractLoading}
+                    disabled={isContractLoading || contractPayment.paymentUrlLoading}
                   >
                     {isContractLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -477,6 +565,30 @@ export default function MapPage() {
           ) : null}
         </DialogContent>
       </Dialog>
+      <PaymentMethodDialog
+        open={isAttendancePaymentDialogOpen}
+        onOpenChange={setIsAttendancePaymentDialogOpen}
+        availableMethods={attendancePayment.availableMethods}
+        selectedMethod={attendancePayment.selectedMethod}
+        onSelect={attendancePayment.setSelectedMethod}
+        onConfirm={() => {
+          void handlePay();
+        }}
+        loading={attendancePayment.paymentUrlLoading}
+        error={attendancePayment.paymentError}
+      />
+      <PaymentMethodDialog
+        open={isContractPaymentDialogOpen}
+        onOpenChange={setIsContractPaymentDialogOpen}
+        availableMethods={contractPayment.availableMethods}
+        selectedMethod={contractPayment.selectedMethod}
+        onSelect={contractPayment.setSelectedMethod}
+        onConfirm={() => {
+          void handleContractPay();
+        }}
+        loading={contractPayment.paymentUrlLoading}
+        error={contractPayment.paymentError}
+      />
     </div>
   );
 }

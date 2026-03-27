@@ -30,6 +30,10 @@ import { useNavigate } from "react-router-dom";
 
 import { ManualPayDialog } from "./ManualPayDialog";
 import { useTranslation } from "react-i18next";
+import { useToast } from "@/hooks/use-toast";
+import { getApiErrorMessage } from "@/lib/api-error";
+import { usePaymentMethodState } from "@/hooks/usePaymentMethodState";
+import { PaymentMethodDialog } from "@/components/payment/PaymentMethodDialog";
 
 interface ActionCellProps {
   contract: Contract;
@@ -43,11 +47,22 @@ interface ContractDebtById {
 
 const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const { deleteContract, automatePaymentRedirect } = useContracts();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [isManualPayOpen, setIsManualPayOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const {
+    availableMethods,
+    selectedMethod,
+    setSelectedMethod,
+    paymentUrlLoading,
+    setPaymentUrlLoading,
+    paymentError,
+    setPaymentError,
+  } = usePaymentMethodState(contract.availableMethods ?? null);
 
   const handleSeeTransactions = () => {
     const search = contract.certificateNumber || "";
@@ -55,11 +70,41 @@ const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
   };
 
   const handlePay = async () => {
-    setMenuOpen(false);
+    if (paymentUrlLoading) {
+      return;
+    }
+
     const pendingPeriods = contract.paymentPeriods?.filter(p => p.status === 'PENDING') || [];
     if (pendingPeriods.length === 0) return;
-    
-    await automatePaymentRedirect(contract.id, pendingPeriods.map(p => p.id));
+
+    if (!selectedMethod) {
+      setPaymentError("To'lov usulini tanlang");
+      return;
+    }
+
+    setPaymentError(null);
+    setPaymentUrlLoading(true);
+    try {
+      await automatePaymentRedirect(contract.id, pendingPeriods.map(p => p.id), selectedMethod);
+      setIsPaymentDialogOpen(false);
+    } catch (error) {
+      toast({
+        title: t("common.error"),
+        description: getApiErrorMessage(
+          error,
+          "To'lov holati yangilandi. Iltimos, shartnomani qayta tekshirib ko'ring.",
+        ),
+        variant: "destructive",
+      });
+      setPaymentError(
+        getApiErrorMessage(
+          error,
+          "To'lov holati yangilandi. Iltimos, shartnomani qayta tekshirib ko'ring.",
+        ),
+      );
+    } finally {
+      setPaymentUrlLoading(false);
+    }
   };
 
   const handleFinish = async () => {
@@ -103,7 +148,12 @@ const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
               </DropdownMenuItem>
               {showPayButton && (
                 <DropdownMenuItem
-                  onClick={handlePay}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setPaymentError(null);
+                    setIsPaymentDialogOpen(true);
+                  }}
+                  disabled={paymentUrlLoading}
                   className="cursor-pointer text-blue-600 focus:text-blue-700 focus:bg-blue-50"
                 >
                   <CreditCard className="mr-2 h-4 w-4" />
@@ -175,6 +225,18 @@ const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
         contract={contract}
         open={isManualPayOpen}
         onOpenChange={setIsManualPayOpen}
+      />
+      <PaymentMethodDialog
+        open={isPaymentDialogOpen}
+        onOpenChange={setIsPaymentDialogOpen}
+        availableMethods={availableMethods}
+        selectedMethod={selectedMethod}
+        onSelect={setSelectedMethod}
+        onConfirm={() => {
+          void handlePay();
+        }}
+        loading={paymentUrlLoading}
+        error={paymentError}
       />
     </div>
   );

@@ -151,6 +151,7 @@ export interface Contract {
   transactions?: Transaction[];
   paymentPeriods?: ContractPaymentPeriod[];
   paymentSnapshot?: PaymentSnapshot;
+  availableMethods?: Array<'click' | 'payme'>;
 }
 
 export interface Attendance {
@@ -164,6 +165,7 @@ export interface Attendance {
   updatedAt: string | null;
   Stall?: Stall;
   transaction?: Transaction;
+  availableMethods?: Array<'click' | 'payme'>;
 }
 
 export interface Transaction {

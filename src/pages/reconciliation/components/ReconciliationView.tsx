@@ -24,7 +24,6 @@ import { useOwners } from "../../owners/hooks/useOwners";
 import { useContracts } from "../../contracts/hooks/useContracts";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useToast } from "@/hooks/use-toast";
-import baseApi from "@/api";
 import { useStalls } from "../../stalls/hooks/useStalls";
 import { useAttendances } from "../../attendances/hooks/useAttendances";
 import { ManualPayDialog } from "../../contracts/components/ManualPayDialog";
@@ -74,6 +73,10 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import type { Attendance } from "@/types/api-responses";
+import { getAdminAttendancePaymentUrl } from "@/api/payments";
+import { getApiErrorMessage, getApiErrorStatus } from "@/lib/api-error";
+import { usePaymentMethodState } from "@/hooks/usePaymentMethodState";
+import { PaymentMethodDialog } from "@/components/payment/PaymentMethodDialog";
 
 type FilterType = "store" | "owner" | "stall";
 
@@ -154,6 +157,10 @@ export function ReconciliationView() {
   } | null>(null);
 
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [isContractPaymentDialogOpen, setIsContractPaymentDialogOpen] = useState(false);
+  const [isAttendancePaymentDialogOpen, setIsAttendancePaymentDialogOpen] = useState(false);
+  const [pendingContractPeriodIds, setPendingContractPeriodIds] = useState<string[]>([]);
+  const [attendanceToPayId, setAttendanceToPayId] = useState<number | null>(null);
   const [editedAmounts, setEditedAmounts] = useState<Record<string, string>>({});
   const [editingPeriodId, setEditingPeriodId] = useState<string | null>(null);
   const [tempAmount, setTempAmount] = useState<string>("");
@@ -169,13 +176,17 @@ export function ReconciliationView() {
   });
 
   const { useGetStalls } = useStalls();
-  const { data: stallsData, isLoading: stallsLoading } = useGetStalls({
+  const { data: stallsData, isLoading: stallsLoading, refetch: refetchStalls } = useGetStalls({
     search: filterType === "stall" ? debouncedSearch : "",
     limit: 100,
   });
 
   const { useGetAttendances } = useAttendances();
-  const { data: attendancesData, isLoading: attendancesLoading } = useGetAttendances({
+  const {
+    data: attendancesData,
+    isLoading: attendancesLoading,
+    refetch: refetchAttendances,
+  } = useGetAttendances({
     stallId: selectedStallId || undefined,
     limit: 1000,
     enabled: filterType === "stall" && !!selectedStallId
@@ -224,6 +235,12 @@ export function ReconciliationView() {
     () => contractsData?.data?.find((c) => c.id === selectedContractId),
     [contractsData, selectedContractId],
   );
+  const attendanceToPay = useMemo(
+    () => attendancesData?.data?.find((attendance) => attendance.id === attendanceToPayId) ?? null,
+    [attendancesData, attendanceToPayId],
+  );
+  const contractPayment = usePaymentMethodState(selectedContract?.availableMethods ?? null);
+  const attendancePayment = usePaymentMethodState(attendanceToPay?.availableMethods ?? null);
 
   const paymentHistory = useMemo(() => {
     if (!selectedContract || !selectedContract.paymentPeriods) return [];
@@ -345,7 +362,7 @@ export function ReconciliationView() {
       await payContract.mutateAsync({
         id: selectedContract.id,
         amount: Number(selectedContract.shopMonthlyFee),
-        month: format(payingMonth.date, "yyyy-MM-dd"),
+        month: format(payingMonth.date, "yyyy-MM"),
       });
       setIsPayConfirmOpen(false);
       setPayingMonth(null);
@@ -354,22 +371,119 @@ export function ReconciliationView() {
     }
   };
 
-  const handlePayAttendance = async (attendanceId: number) => {
+  const handlePayAttendance = async () => {
+    if (isRedirecting) {
+      return;
+    }
+
+    if (!attendanceToPayId) {
+      return;
+    }
+
+    if (!attendancePayment.selectedMethod) {
+      attendancePayment.setPaymentError("To'lov usulini tanlang");
+      return;
+    }
+
+    attendancePayment.setPaymentError(null);
     setIsRedirecting(true);
-    const isMyRent = window.location.hostname.includes("myrent.uz");
-    const type = isMyRent ? 'payme' : 'click';
     try {
-      const response = await baseApi.get(`/attendances/${attendanceId}/pay/`, {
-        params: { type },
-      });
-      if (response.data.url) {
-        window.open(response.data.url, '_blank');
+      const response = await getAdminAttendancePaymentUrl(
+        attendanceToPayId,
+        attendancePayment.selectedMethod,
+      );
+      if (response.url) {
+        setIsAttendancePaymentDialogOpen(false);
+        window.open(response.url, '_blank');
       }
     } catch (error) {
+      const status = getApiErrorStatus(error);
+      if (status === 400 || status === 409) {
+        await Promise.all([refetchAttendances(), refetchStalls()]);
+      }
       console.error("Payment error:", error);
+      toast({
+        variant: "destructive",
+        title: t("common.error"),
+        description: getApiErrorMessage(
+          error,
+          "To'lov holati yangilandi. Iltimos, rastani qayta tekshirib ko'ring.",
+        ),
+      });
+      attendancePayment.setPaymentError(
+        getApiErrorMessage(
+          error,
+          "To'lov holati yangilandi. Iltimos, rastani qayta tekshirib ko'ring.",
+        ),
+      );
     } finally {
       setIsRedirecting(false);
     }
+  };
+
+  const handleContractRedirect = async () => {
+    if (!selectedContract || isRedirecting) {
+      return;
+    }
+
+    if (!contractPayment.selectedMethod) {
+      contractPayment.setPaymentError("To'lov usulini tanlang");
+      return;
+    }
+
+    contractPayment.setPaymentError(null);
+    setIsRedirecting(true);
+    try {
+      await automatePaymentRedirect(
+        selectedContract.id,
+        pendingContractPeriodIds,
+        contractPayment.selectedMethod,
+      );
+      setIsContractPaymentDialogOpen(false);
+    } catch (error) {
+      const status = getApiErrorStatus(error);
+      if (status === 400 || status === 409) {
+        await refetchContracts();
+      }
+
+      toast({
+        variant: "destructive",
+        title: t("common.error"),
+        description: getApiErrorMessage(
+          error,
+          "To'lov holati yangilandi. Iltimos, shartnomani qayta tekshirib ko'ring.",
+        ),
+      });
+      contractPayment.setPaymentError(
+        getApiErrorMessage(
+          error,
+          "To'lov holati yangilandi. Iltimos, shartnomani qayta tekshirib ko'ring.",
+        ),
+      );
+    } finally {
+      setIsRedirecting(false);
+    }
+  };
+
+  const openAttendancePaymentDialog = (attendanceId: number) => {
+    setAttendanceToPayId(attendanceId);
+    attendancePayment.setPaymentError(null);
+    setIsAttendancePaymentDialogOpen(true);
+  };
+
+  const openContractPaymentDialog = (periodIds: string[]) => {
+    if (!selectedContract) {
+      return;
+    }
+
+    if (selectedContract.paymentType === "BANK") {
+      setIsManualPayOpen(true);
+      return;
+    }
+
+    setPendingContractPeriodIds(periodIds);
+    contractPayment.setPaymentError(null);
+    setIsContractPaymentDialogOpen(true);
   };
 
   const handleAdvancePayment = async () => {
@@ -715,7 +829,7 @@ export function ReconciliationView() {
                             {att.status !== 'PAID' && (
                               <Button
                                 size="sm"
-                                onClick={() => handlePayAttendance(att.id)}
+                                onClick={() => openAttendancePaymentDialog(att.id)}
                                 disabled={isRedirecting}
                                 className="h-8 bg-blue-600 hover:bg-blue-700 font-bold"
                               >
@@ -950,26 +1064,17 @@ export function ReconciliationView() {
                             <Button
                                 onClick={async () => {
                                 if (!selectedContract) return;
-                                setIsRedirecting(true);
-                                try {
-                                  if (selectedContract.paymentType === 'BANK') {
-                                    setIsManualPayOpen(true);
-                                    return;
-                                  }
-                                  
-                                  const pendingPeriods = selectedContract.paymentPeriods
-                                    ?.filter(p => p.status === 'PENDING')
-                                    ?.sort((a, b) => { // Sort strictly ascending to pay oldest first
-                                       if (a.year !== b.year) return a.year - b.year;
-                                       return a.month - b.month;
-                                    })
-                                    ?.map(p => p.id) || [];
-                                    
-                                  if (pendingPeriods.length > 0) {
-                                    await automatePaymentRedirect(selectedContract.id, pendingPeriods);
-                                  }
-                                } finally {
-                                  setIsRedirecting(false);
+
+                                const pendingPeriods = selectedContract.paymentPeriods
+                                  ?.filter(p => p.status === 'PENDING')
+                                  ?.sort((a, b) => {
+                                     if (a.year !== b.year) return a.year - b.year;
+                                     return a.month - b.month;
+                                  })
+                                  ?.map(p => p.id) || [];
+                                
+                                if (selectedContract.paymentType === "BANK" || pendingPeriods.length > 0) {
+                                  openContractPaymentDialog(pendingPeriods);
                                 }
                               }}
                               disabled={isRedirecting}
@@ -1140,20 +1245,8 @@ export function ReconciliationView() {
                                     </p>
                                     {!month.isPaid && (
                                         <button
-                                          onClick={async () => {
-                                            if (!selectedContract) return;
-
-                                            if (selectedContract.paymentType === 'BANK') {
-                                              setIsManualPayOpen(true);
-                                              return;
-                                            }
-
-                                            setIsRedirecting(true);
-                                            try {
-                                              await automatePaymentRedirect(selectedContract.id, [month.id]);
-                                            } finally {
-                                              setIsRedirecting(false);
-                                            }
+                                          onClick={() => {
+                                            openContractPaymentDialog([month.id]);
                                           }}
                                           disabled={isRedirecting}
                                           className="text-[10px] text-primary font-bold hover:underline flex items-center gap-1 disabled:opacity-50">
@@ -1377,6 +1470,30 @@ export function ReconciliationView() {
           onOpenChange={setIsManualPayOpen}
         />
       )}
+      <PaymentMethodDialog
+        open={isAttendancePaymentDialogOpen}
+        onOpenChange={setIsAttendancePaymentDialogOpen}
+        availableMethods={attendancePayment.availableMethods}
+        selectedMethod={attendancePayment.selectedMethod}
+        onSelect={attendancePayment.setSelectedMethod}
+        onConfirm={() => {
+          void handlePayAttendance();
+        }}
+        loading={isRedirecting}
+        error={attendancePayment.paymentError}
+      />
+      <PaymentMethodDialog
+        open={isContractPaymentDialogOpen}
+        onOpenChange={setIsContractPaymentDialogOpen}
+        availableMethods={contractPayment.availableMethods}
+        selectedMethod={contractPayment.selectedMethod}
+        onSelect={contractPayment.setSelectedMethod}
+        onConfirm={() => {
+          void handleContractRedirect();
+        }}
+        loading={isRedirecting}
+        error={contractPayment.paymentError}
+      />
     </div>
   );
 }

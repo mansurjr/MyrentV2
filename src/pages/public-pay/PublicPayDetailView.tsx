@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -9,7 +9,6 @@ import {
   Tag,
   CheckSquare,
   Square,
-  CreditCard,
 } from "lucide-react";
 import {
   Card,
@@ -30,68 +29,69 @@ import {
 } from "@/api/publicPay";
 import { getMonthName } from "@/lib/time";
 import { cn } from "@/lib/utils";
+import type {
+  PublicContractDetail,
+  PublicStallDetail,
+} from "@/types/payment";
+import {
+  getPendingContractPeriods,
+  normalizePeriodIds,
+  sumContractPeriods,
+} from "@/lib/payment";
+import { getApiErrorMessage, getApiErrorStatus } from "@/lib/api-error";
+import { usePaymentMethodState } from "@/hooks/usePaymentMethodState";
+import { PaymentMethodSelector } from "@/components/payment/PaymentMethodSelector";
+
+type PaymentDetailData = PublicContractDetail | PublicStallDetail;
 
 export default function PublicPayDetailView() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const availableMethods = window.location.hostname.split(".")[0] === "myrent"
-    ? ["payme"]
-    : ["click"];
-
   const contractId = searchParams.get("contractId");
   const mode = searchParams.get("mode") || "contract";
   const stallNumber = searchParams.get("stall");
   const date = searchParams.get("date");
-  const create = searchParams.get("create") === "true";
+  const isContractMode = mode === "contract";
 
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<PaymentDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [payingStatus, setPayingStatus] = useState<string>("idle");
   const [selectedPeriods, setSelectedPeriods] = useState<string[]>([]);
+  const requestIdRef = useRef(0);
 
   const fetchData = async () => {
     setLoading(true);
     setError("");
+
     try {
-      if (mode === "contract" && contractId) {
-        const res = await getPublicContractDetail(Number(contractId));
-        setData(res);
-        const periods = res.pendingPeriods || res.paymentPeriods || [];
-        const unpaid = periods.filter(
-          (p: any) =>
-            p.status === "PENDING" || !p.status || p.status === "UNPAID",
-        );
-        if (unpaid.length > 0) {
-          setSelectedPeriods(unpaid.map((p: any) => p.id));
-        }
-      } else if (mode === "stall" && stallNumber) {
-        try {
-          const res = await getPublicStall(stallNumber, {
-            date: date || undefined,
-          });
-          setData(Array.isArray(res) ? res[0] : res);
-        } catch (err) {
-          if (create) {
-            setData({
-              stall: { stallNumber: stallNumber },
-              payment: { date: date, status: "UNPAID" },
-              isNew: true,
-            });
-          } else {
-            throw err;
-          }
-        }
-      } else {
-        setError("Ma'lumotlar yetarli emas");
+      if (isContractMode && contractId) {
+        const response = await getPublicContractDetail(Number(contractId));
+        const pendingPeriods = getPendingContractPeriods(response.paymentPeriods);
+        const pendingIds = normalizePeriodIds(pendingPeriods.map((period) => period.id));
+
+        setData(response);
+        setSelectedPeriods((currentIds) => {
+          const preservedIds = currentIds.filter((periodId) => pendingIds.includes(periodId));
+          return preservedIds.length > 0 ? preservedIds : pendingIds;
+        });
+        return;
       }
-    } catch (err: any) {
-      setError(
-        err?.response?.data?.message ||
-          err.message ||
-          "Ma'lumotlarni yuklashda xatolik",
-      );
+
+      if (!isContractMode && stallNumber && date) {
+        const response = await getPublicStall(stallNumber, { date });
+        setData(response);
+        setSelectedPeriods([]);
+        return;
+      }
+
+      setError("Ma'lumotlar yetarli emas");
+      setData(null);
+      setSelectedPeriods([]);
+    } catch (err) {
+      setData(null);
+      setSelectedPeriods([]);
+      setError(getApiErrorMessage(err, "Ma'lumotlarni yuklashda xatolik"));
     } finally {
       setLoading(false);
     }
@@ -99,7 +99,7 @@ export default function PublicPayDetailView() {
 
   useEffect(() => {
     fetchData();
-  }, [contractId, mode, stallNumber, date, create]);
+  }, [contractId, isContractMode, stallNumber, date]);
 
   useEffect(() => {
     const handleFocus = () => {
@@ -110,64 +110,104 @@ export default function PublicPayDetailView() {
     return () => {
       window.removeEventListener("focus", handleFocus);
     };
-  }, [contractId, mode, stallNumber, date, create]);
+  }, [contractId, isContractMode, stallNumber, date]);
+
+  const contractData = isContractMode ? (data as PublicContractDetail | null) : null;
+  const stallData = !isContractMode ? (data as PublicStallDetail | null) : null;
+  const {
+    availableMethods,
+    selectedMethod,
+    setSelectedMethod,
+    paymentUrlLoading,
+    setPaymentUrlLoading,
+    paymentError,
+    setPaymentError,
+  } = usePaymentMethodState(contractData?.availableMethods ?? stallData?.availableMethods ?? null);
+  const pendingPeriods = contractData ? getPendingContractPeriods(contractData.paymentPeriods) : [];
+  const selectedPendingPeriods = pendingPeriods.filter((period) => selectedPeriods.includes(period.id));
+  const amountToPay = contractData
+    ? sumContractPeriods(selectedPendingPeriods)
+    : Number(stallData?.dailyFee ?? 0);
+  const isPaid = contractData ? pendingPeriods.length === 0 : stallData?.status === "PAID";
 
   const togglePeriod = (id: string) => {
-    setSelectedPeriods((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id],
+    setSelectedPeriods((currentIds) =>
+      currentIds.includes(id)
+        ? currentIds.filter((periodId) => periodId !== id)
+        : [...currentIds, id],
     );
   };
 
-  const handlePayment = async (method: string) => {
-    if (selectedPeriods.length === 0 && mode === "contract") {
-      alert("Iltimos, kamida bitta oyni tanlang");
+  const handlePayment = async () => {
+    if (paymentUrlLoading) {
       return;
     }
 
-    const newTab = window.open("", "_blank");
+    if (contractData && selectedPendingPeriods.length === 0) {
+      setPaymentError("Iltimos, kamida bitta oyni tanlang");
+      return;
+    }
 
-    setPayingStatus(method);
+    if (!selectedMethod) {
+      setPaymentError("To'lov usulini tanlang");
+      return;
+    }
+
+    const currentRequestId = requestIdRef.current + 1;
+    requestIdRef.current = currentRequestId;
+
+    const newTab = window.open("", "_blank");
+    setPaymentError(null);
+    setPaymentUrlLoading(true);
+
     try {
       let url = "";
-      if (mode === "contract" && data?.id) {
-        const res = await createPublicContractPaymentUrl(data.id, {
-          periodIds: selectedPeriods,
-          method,
+
+      if (contractData) {
+        const periodIds = normalizePeriodIds(selectedPendingPeriods.map((period) => period.id));
+        const response = await createPublicContractPaymentUrl(contractData.id, {
+          periodIds,
+          method: selectedMethod,
         });
-        url = res.url;
-      } else if (
-        mode === "stall" &&
-        (data?.stall?.stallNumber || stallNumber)
-      ) {
-        const res = await createPublicStallPaymentUrl(
-          data?.stall?.stallNumber || stallNumber,
-          {
-            date: data?.payment?.date || date,
-            method,
-          },
-        );
-        url = res.url;
+        url = response.url;
+      } else if (stallData) {
+        const response = await createPublicStallPaymentUrl(stallData.stallNumber, {
+          date: stallData.date,
+          method: selectedMethod,
+        });
+        url = response.url;
       }
 
-      if (url) {
-        if (newTab) {
-          newTab.location.href = url;
-        } else {
-          window.location.href = url;
-        }
-      } else {
+      if (requestIdRef.current !== currentRequestId) {
         newTab?.close();
+        return;
+      }
+
+      if (!url) {
         throw new Error("To'lov havolasi olinmadi");
       }
-    } catch (err: any) {
+
+      if (newTab) {
+        newTab.location.href = url;
+      } else {
+        window.location.href = url;
+      }
+    } catch (err) {
       newTab?.close();
-      alert(
-        err?.response?.data?.message ||
-          err.message ||
-          "To'lovda xatolik yuz berdi",
-      );
+
+      const status = getApiErrorStatus(err);
+      if (status === 400 || status === 409) {
+        await fetchData();
+      }
+
+      const fallbackMessage = contractData
+        ? "To'lov davrlari yangilandi. Iltimos, tanlovni qayta tekshirib urinib ko'ring."
+        : "Rasta to'lov holati yangilandi. Iltimos, qayta tekshirib urinib ko'ring.";
+      setPaymentError(getApiErrorMessage(err, fallbackMessage));
     } finally {
-      setPayingStatus("idle");
+      if (requestIdRef.current === currentRequestId) {
+        setPaymentUrlLoading(false);
+      }
     }
   };
 
@@ -200,37 +240,6 @@ export default function PublicPayDetailView() {
     );
   }
 
-  const isContract = mode === "contract";
-  const allPeriods = isContract
-    ? data.pendingPeriods || data.paymentPeriods || data.debtPeriods || []
-    : [];
-
-  const pendingPeriods = allPeriods.filter(
-    (p: any) =>
-      p.status === "PENDING" ||
-      p.status === "UNPAID" ||
-      !p.status ||
-      p.isPaid === false,
-  );
-  const backendDebtAmountRaw = Number(
-    data.paymentSnapshot?.debtAmount ??
-      data.unpaid ??
-      data.debtAmount ??
-      data.debt ??
-      0,
-  );
-  const backendDebtAmount = Number.isFinite(backendDebtAmountRaw)
-    ? backendDebtAmountRaw
-    : 0;
-
-  const amountToPay = isContract
-    ? backendDebtAmount
-    : Number(data?.dailyFee || 0);
-
-  const isPaid = isContract
-    ? pendingPeriods.length === 0 && backendDebtAmount === 0
-    : data?.status === "PAID";
-
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 px-4 py-8 sm:py-20 flex items-center justify-center">
       <div className="max-w-xl w-full">
@@ -246,20 +255,20 @@ export default function PublicPayDetailView() {
           <CardHeader className="border-b bg-slate-50/50 dark:bg-slate-800/50 p-8">
             <div className="flex items-center gap-4 mb-2">
               <div className="h-12 w-12 rounded-xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                {isContract ? (
+                {contractData ? (
                   <StoreIcon className="h-6 w-6" />
                 ) : (
                   <Tag className="h-6 w-6" />
                 )}
               </div>
               <CardTitle className="text-2xl font-extrabold tracking-tight">
-                {isContract
-                  ? data.store?.storeNumber || "Do'kon"
-                  : `Rasta: ${data.stall?.stallNumber || stallNumber}`}
+                {contractData
+                  ? contractData.store?.storeNumber || "Do'kon"
+                  : `Rasta: ${stallData?.stallNumber || stallNumber}`}
               </CardTitle>
             </div>
             <CardDescription className="font-semibold text-slate-600 dark:text-slate-400">
-              {isContract ? data.owner?.fullName : `Sana: ${date}`}
+              {contractData ? contractData.owner?.fullName : `Sana: ${stallData?.date || date}`}
             </CardDescription>
           </CardHeader>
 
@@ -278,12 +287,12 @@ export default function PublicPayDetailView() {
                   <Badge
                     variant="destructive"
                     className="px-4 py-1.5 text-xs font-black uppercase animate-pulse">
-                    {data.isNew ? "Yangi davomat" : "To'lanmagan"}
+                    To'lanmagan
                   </Badge>
                 )}
               </div>
 
-              {isContract && pendingPeriods.length > 0 && (
+              {contractData && pendingPeriods.length > 0 && (
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground font-bold uppercase tracking-widest text-[10px]">
@@ -294,9 +303,7 @@ export default function PublicPayDetailView() {
                         if (selectedPeriods.length === pendingPeriods.length) {
                           setSelectedPeriods([]);
                         } else {
-                          setSelectedPeriods(
-                            pendingPeriods.map((p: any) => p.id),
-                          );
+                          setSelectedPeriods(pendingPeriods.map((period) => period.id));
                         }
                       }}
                       className="text-[10px] font-bold text-blue-600 uppercase hover:underline">
@@ -306,16 +313,12 @@ export default function PublicPayDetailView() {
                     </button>
                   </div>
                   <div className="grid gap-2">
-                    {pendingPeriods.map((p: any) => {
-                      const mNumber =
-                        typeof p.month === "string"
-                          ? parseInt(p.month.replace(/\D/g, ""))
-                          : p.month;
-                      const isSelected = selectedPeriods.includes(p.id);
+                    {pendingPeriods.map((period) => {
+                      const isSelected = selectedPeriods.includes(period.id);
                       return (
                         <div
-                          key={p.id}
-                          onClick={() => togglePeriod(p.id)}
+                          key={period.id}
+                          onClick={() => togglePeriod(period.id)}
                           className={cn(
                             "flex items-center gap-3 p-4 rounded-lg text-sm font-bold border transition-all cursor-pointer",
                             isSelected
@@ -340,7 +343,7 @@ export default function PublicPayDetailView() {
                                   ? "text-blue-900 dark:text-blue-100"
                                   : "text-slate-600 dark:text-slate-400"
                               }>
-                              {p.year}-yil, {getMonthName(mNumber)}
+                              {period.year}-yil, {getMonthName(period.month)}
                             </span>
                             <span
                               className={
@@ -348,8 +351,7 @@ export default function PublicPayDetailView() {
                                   ? "text-blue-900 dark:text-blue-100"
                                   : "text-slate-900 dark:text-white"
                               }>
-                              {new Intl.NumberFormat("uz-UZ").format(p.amount)}{" "}
-                              UZS
+                              {new Intl.NumberFormat("uz-UZ").format(Number(period.amount))} UZS
                             </span>
                           </div>
                         </div>
@@ -369,7 +371,7 @@ export default function PublicPayDetailView() {
                   <span className="text-4xl font-black text-blue-600 dark:text-blue-400 block tracking-tight">
                     {amountToPay > 0
                       ? new Intl.NumberFormat("uz-UZ").format(amountToPay)
-                      : "—"}
+                      : "0"}
                   </span>
                   <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                     UZS
@@ -380,64 +382,44 @@ export default function PublicPayDetailView() {
 
             {!isPaid && (
               <div className="grid gap-4 pt-4">
-                {(data.availableMethods || availableMethods).map(
-                  (method: string) => {
-                    const m = method.toLowerCase();
-                    console.log("remote",data.availableMethods)
-                    console.log("local",availableMethods)
-                    const isClick = m === "click";
-                    const isPayme = m === "payme";
-
-                    return (
-                      <Button
-                        key={method}
-                        onClick={() => handlePayment(method)}
-                        disabled={payingStatus !== "idle"}
-                        className={cn(
-                          "h-16 rounded-xl flex items-center justify-between px-6 transition-all hover:scale-[1.01] active:scale-[0.99] font-black tracking-widest italic text-lg shadow-lg",
-                          isClick
-                            ? "bg-[#0091ff] hover:bg-[#0070c5] text-white shadow-blue-500/10"
-                            : isPayme
-                              ? "bg-[#16c7cc] hover:bg-[#12a5aa] text-white shadow-teal-500/10"
-                              : "bg-slate-900 hover:bg-slate-800 text-white",
-                        )}>
-                        <span className="uppercase">{method}</span>
-                        {payingStatus === method ? (
-                          <Loader2 className="h-6 w-6 animate-spin" />
-                        ) : (
-                          <ArrowLeft className="h-5 w-5 rotate-180" />
-                        )}
-                      </Button>
-                    );
-                  },
-                )}
+                <PaymentMethodSelector
+                  availableMethods={availableMethods}
+                  selectedMethod={selectedMethod}
+                  onSelect={setSelectedMethod}
+                  disabled={paymentUrlLoading}
+                />
+                {paymentError ? (
+                  <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                    {paymentError}
+                  </div>
+                ) : null}
+                <Button
+                  onClick={() => {
+                    void handlePayment();
+                  }}
+                  disabled={paymentUrlLoading || availableMethods.length === 0}
+                  className={cn(
+                    "h-16 rounded-xl flex items-center justify-between px-6 transition-all hover:scale-[1.01] active:scale-[0.99] font-black tracking-widest italic text-lg shadow-lg",
+                    selectedMethod === "payme"
+                      ? "bg-[#16c7cc] hover:bg-[#12a5aa] text-white shadow-teal-500/10"
+                      : "bg-[#0091ff] hover:bg-[#0070c5] text-white shadow-blue-500/10",
+                  )}>
+                  <span className="uppercase">
+                    {selectedMethod ? "To'lovga o'tish" : "To'lov usulini tanlang"}
+                  </span>
+                  {paymentUrlLoading ? (
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  ) : (
+                    <ArrowLeft className="h-5 w-5 rotate-180" />
+                  )}
+                </Button>
               </div>
             )}
-
-            {!isPaid &&
-              data.paymentUrl &&
-              (isContract
-                ? selectedPeriods.length === pendingPeriods.length
-                : true) && (
-                <div className="pt-4">
-                  <Button
-                    asChild
-                    className="w-full h-14 bg-linear-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-xl shadow-blue-500/20">
-                    <a
-                      href={data.paymentUrl}
-                      target="_blank"
-                      rel="noopener noreferrer">
-                      <CreditCard className="mr-2 h-5 w-5" />
-                      Barcha qarzlarni to'lash
-                    </a>
-                  </Button>
-                </div>
-              )}
           </CardContent>
 
           <CardFooter className="border-t bg-slate-50/30 dark:bg-slate-800/20 p-6">
             <p className="text-muted-foreground text-[10px] text-center font-semibold uppercase tracking-wider mx-auto leading-relaxed">
-              Guvohnoma № {isContract ? data.certificateNumber || "—" : "—"}
+              Guvohnoma No. {contractData ? contractData.certificateNumber || "-" : "-"}
             </p>
           </CardFooter>
         </Card>

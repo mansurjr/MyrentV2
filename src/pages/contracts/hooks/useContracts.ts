@@ -1,6 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import baseApi from "../../../api";
 import type { Contract, ContractListResponse } from "../../../types/api-responses";
+import { createAdminContractPaymentUrl } from "@/api/payments";
+import { getApiErrorStatus } from "@/lib/api-error";
+import { normalizePeriodIds } from "@/lib/payment";
+import type { PublicPaymentMethod } from "@/types/payment";
 
 export interface ICreateContractDto {
   certificateNumber?: string;
@@ -161,25 +165,39 @@ export const useContracts = () => {
     },
   });
 
-  const getPaymentUrl = async (id: number, periodIds: string[], method?: string) => {
-    const response = await baseApi.post<{ url: string }>(`/contracts/${id}/payment-url`, {
-      periodIds,
-      method: method?.toUpperCase()
+  const getPaymentUrl = async (
+    id: number,
+    periodIds: string[],
+    method?: PublicPaymentMethod,
+  ) => {
+    return createAdminContractPaymentUrl(id, {
+      periodIds: normalizePeriodIds(periodIds),
+      method,
     });
-    return response.data;
   };
 
-  const automatePaymentRedirect = async (id: number, periodIds: string[]) => {
+  const automatePaymentRedirect = async (
+    id: number,
+    periodIds: string[],
+    method?: PublicPaymentMethod,
+  ) => {
     try {
-      const isMyRent = window.location.hostname.includes("myrent.uz");
-      const method = isMyRent ? 'PAYME' : 'CLICK';
-      const response = await getPaymentUrl(id, periodIds, method);
+      const normalizedPeriodIds = normalizePeriodIds(periodIds);
+      if (normalizedPeriodIds.length === 0) {
+        throw new Error("No pending payment periods selected");
+      }
+
+      const response = await getPaymentUrl(id, normalizedPeriodIds, method);
       if (response?.url) {
         window.open(response.url, '_blank');
       } else {
-        console.error("No payment URL returned");
+        throw new Error("No payment URL returned");
       }
     } catch (error) {
+      const status = getApiErrorStatus(error);
+      if (status === 400 || status === 409) {
+        await queryClient.invalidateQueries({ queryKey: ["contracts"] });
+      }
       console.error("Payment redirection failed:", error);
       throw error;
     }

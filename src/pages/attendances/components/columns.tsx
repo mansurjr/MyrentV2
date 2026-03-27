@@ -5,39 +5,82 @@ import { CheckCircle2, Trash2, Loader2, QrCode } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Stall, Attendance } from "@/types/api-responses";
 import { useState } from "react";
+import { usePaymentMethodState } from "@/hooks/usePaymentMethodState";
+import { PaymentMethodDialog } from "@/components/payment/PaymentMethodDialog";
+import type { PublicPaymentMethod } from "@/types/payment";
 
-const PaymentButton = ({ attendanceId, type, label, onGetPaymentUrl, isMyRent }: any) => {
-  const [loading, setLoading] = useState(false);
+const PaymentButton = ({
+  attendanceId,
+  onGetPaymentUrl,
+  availableMethods,
+}: {
+  attendanceId: number;
+  onGetPaymentUrl: (
+    attendanceId: number,
+    method: PublicPaymentMethod,
+  ) => Promise<string | null>;
+  availableMethods?: readonly string[] | null;
+}) => {
+  const [open, setOpen] = useState(false);
+  const {
+    availableMethods: resolvedMethods,
+    selectedMethod,
+    setSelectedMethod,
+    paymentUrlLoading,
+    setPaymentUrlLoading,
+    paymentError,
+    setPaymentError,
+  } = usePaymentMethodState(availableMethods ?? null);
 
   const handlePay = async () => {
-    setLoading(true);
+    if (!selectedMethod) {
+      setPaymentError("To'lov usulini tanlang");
+      return;
+    }
+
+    setPaymentError(null);
+    setPaymentUrlLoading(true);
     try {
-      const url = await onGetPaymentUrl(attendanceId, type);
+      const url = await onGetPaymentUrl(attendanceId, selectedMethod);
       if (url) {
-        window.open(url, '_blank');
+        setOpen(false);
+        window.open(url, "_blank");
       }
     } finally {
-      setLoading(false);
+      setPaymentUrlLoading(false);
     }
   };
 
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      disabled={loading}
-      className={cn(
-        "h-8 px-3 font-medium transition-all text-xs",
-        type === 'cash'
-          ? "border-emerald-500/30 text-emerald-600 hover:bg-emerald-50"
-          : isMyRent 
-            ? "border-[#00BAFF]/30 text-[#00BAFF] hover:bg-[#00BAFF]/10 hover:text-[#00BAFF]" 
-            : "border-[#00A7E1]/30 text-[#00A7E1] hover:bg-[#00A7E1]/10 hover:text-[#00A7E1]"
-      )}
-      onClick={handlePay}
-    >
-      {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : label}
-    </Button>
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={paymentUrlLoading}
+        className={cn(
+          "h-8 px-3 font-medium transition-all text-xs",
+          "border-[#00A7E1]/30 text-[#00A7E1] hover:bg-[#00A7E1]/10 hover:text-[#00A7E1]",
+        )}
+        onClick={() => setOpen(true)}
+      >
+        {paymentUrlLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "To'lash"}
+      </Button>
+      <PaymentMethodDialog
+        open={open}
+        onOpenChange={setOpen}
+        availableMethods={resolvedMethods}
+        selectedMethod={selectedMethod}
+        onSelect={setSelectedMethod}
+        onConfirm={() => {
+          void handlePay();
+        }}
+        loading={paymentUrlLoading}
+        error={paymentError}
+        title="To'lov usulini tanlang"
+        description="Davom etish uchun provider tanlang."
+        submitLabel="To'lovga o'tish"
+      />
+    </>
   );
 };
 
@@ -45,9 +88,12 @@ export const columns = (
   attendances: Attendance[],
   onCreate: (stallId: string | number, amount: number) => void,
   onDelete: (id: number) => void,
-  onGetPaymentUrl: (attendanceId: number, type: string) => Promise<string>,
+  onGetPaymentUrl: (
+    attendanceId: number,
+    method: PublicPaymentMethod,
+  ) => Promise<string | null>,
   isLoading: boolean,
-  t: any
+  t: any,
 ): ColumnDef<Stall>[] => [
   {
     accessorKey: "stallNumber",
@@ -77,8 +123,8 @@ export const columns = (
     header: "Holat",
     cell: ({ row }) => {
       const stall = row.original;
-      const attendance = attendances.find(a => a.stallId === stall.id);
-      
+      const attendance = attendances.find((item) => item.stallId === stall.id);
+
       if (!attendance) {
         return (
           <Badge variant="outline" className="bg-muted/30 text-muted-foreground border-border/50">
@@ -88,13 +134,13 @@ export const columns = (
       }
 
       return (
-        <Badge 
+        <Badge
           variant={attendance.status === "PAID" ? "default" : "destructive"}
           className={cn(
             "font-bold px-3 py-1",
-            attendance.status === "PAID" 
-              ? "bg-emerald-500 hover:bg-emerald-600 dark:bg-emerald-600" 
-              : "bg-amber-500 hover:bg-amber-600 dark:bg-amber-600"
+            attendance.status === "PAID"
+              ? "bg-emerald-500 hover:bg-emerald-600 dark:bg-emerald-600"
+              : "bg-amber-500 hover:bg-amber-600 dark:bg-amber-600",
           )}
         >
           {attendance.status === "PAID" ? "TO'LANGAN" : "TO'LANMAGAN"}
@@ -107,11 +153,11 @@ export const columns = (
     header: "Tezkor amal",
     cell: ({ row }) => {
       const stall = row.original;
-      const attendance = attendances.find(a => a.stallId === stall.id);
+      const attendance = attendances.find((item) => item.stallId === stall.id);
 
       if (!attendance) {
         return (
-          <Button 
+          <Button
             onClick={() => onCreate(stall.id, Number(stall.dailyFee) || 0)}
             disabled={isLoading}
             size="sm"
@@ -127,42 +173,24 @@ export const columns = (
         <div className="flex items-center gap-2">
           {attendance.status === "UNPAID" && (
             <div className="flex items-center gap-2 mr-2">
-              {(() => {
-                const isMyRent = window.location.hostname.includes('myrent.uz');
-                return (
-                  <>
-                    <PaymentButton 
-                      attendanceId={attendance.id}
-                      type="click"
-                      label="Click"
-                      isMyRent={false}
-                      onGetPaymentUrl={onGetPaymentUrl}
-                    />
-                    {isMyRent && (
-                      <PaymentButton 
-                        attendanceId={attendance.id}
-                        type="payme"
-                        label="Payme"
-                        isMyRent={true}
-                        onGetPaymentUrl={onGetPaymentUrl}
-                      />
-                    )}
-                  </>
-                );
-              })()}
+              <PaymentButton
+                attendanceId={attendance.id}
+                availableMethods={attendance.availableMethods}
+                onGetPaymentUrl={onGetPaymentUrl}
+              />
             </div>
           )}
-          
-          {attendance.status === "PAID" && (attendance as any).transaction?.fiscalQrCode && (
+
+          {attendance.status === "PAID" && attendance.transaction?.fiscalQrCode && (
             <Button variant="ghost" size="sm" asChild className="h-8 w-8 p-0 hover:bg-primary/10">
-              <a href={(attendance as any).transaction.fiscalQrCode} target="_blank" rel="noopener noreferrer">
+              <a href={attendance.transaction.fiscalQrCode} target="_blank" rel="noopener noreferrer">
                 <QrCode className="h-4 w-4 text-primary" />
               </a>
             </Button>
           )}
-          
+
           {attendance.status !== "PAID" && (
-            <Button 
+            <Button
               onClick={() => onDelete(attendance.id)}
               disabled={isLoading}
               variant="ghost"

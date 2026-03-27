@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAttendances } from "../hooks/useAttendances";
 import { useStalls } from "../../stalls/hooks/useStalls";
-import baseApi from "@/api";
 import { CardContent } from "@/components/ui/card";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
@@ -19,9 +18,13 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { downloadExcelWithAuth } from "@/lib/excel-export";
 import { columns } from "./columns";
+import { useToast } from "@/hooks/use-toast";
+import { getAdminAttendancePaymentUrl } from "@/api/payments";
+import { getApiErrorMessage, getApiErrorStatus } from "@/lib/api-error";
 
 export function AttendancesList() {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -71,14 +74,24 @@ export function AttendancesList() {
     }
   };
 
-  const handleGetPaymentUrl = async (attendanceId: number, type: string) => {
+  const handleGetPaymentUrl = async (attendanceId: number, method: "click" | "payme") => {
     try {
-      const response = await baseApi.get(`/attendances/${attendanceId}/pay/`, {
-        params: { type },
-      });
-      return response.data.url;
+      const response = await getAdminAttendancePaymentUrl(attendanceId, method);
+      return response.url;
     } catch (error) {
-      console.error("Error getting payment URL:", error);
+      const status = getApiErrorStatus(error);
+      if (status === 400 || status === 409) {
+        await Promise.all([attendancesQuery.refetch(), stallsQuery.refetch()]);
+      }
+
+      toast({
+        title: t("common.error"),
+        description: getApiErrorMessage(
+          error,
+          "To'lov holati yangilandi. Iltimos, yana tekshirib ko'ring.",
+        ),
+        variant: "destructive",
+      });
       return null;
     }
   };

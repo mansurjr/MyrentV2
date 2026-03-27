@@ -7,8 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { getTashkentTodayISO, formatTashkentDate, isDateWithinCurrentWeek } from "@/lib/time";
+import { getTashkentTodayISO, formatTashkentDate } from "@/lib/time";
 import { searchPublicContracts, getPublicStall } from "@/api/publicPay";
+import type { PublicContractSearchResult, PublicStallDetail } from "@/types/payment";
+import { sumContractPeriods } from "@/lib/payment";
+
+type PublicSearchResult = PublicContractSearchResult | PublicStallDetail;
 
 export default function PublicPayView() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -20,21 +24,13 @@ export default function PublicPayView() {
   const [stallNumber, setStallNumber] = useState(searchParams.get("stall") || "");
   const [date, setDate] = useState(searchParams.get("date") || getTashkentTodayISO());
 
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<PublicSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  const getEntryDebtAmount = (entry: any) => {
-    const value = Number(
-      entry?.unpaid ??
-      entry?.debtAmount ??
-      entry?.debt ??
-      entry?.paymentSnapshot?.debtAmount ??
-      0,
-    );
-    return Number.isFinite(value) ? value : 0;
-  };
+  const getEntryDebtAmount = (entry: PublicContractSearchResult) =>
+    sumContractPeriods(entry.pendingPeriods ?? []);
 
   const handleSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -50,7 +46,7 @@ export default function PublicPayView() {
           return;
         }
         const data = await searchPublicContracts({ storeNumber, tin, fields: "min" });
-        const filtered = (data || []).filter((c: any) => c.paymentType === "ONLINE");
+        const filtered = (data || []).filter((contract) => contract.paymentType === "ONLINE");
         setResults(filtered);
         if (filtered.length === 0) setError("Mos shartnoma topilmadi");
         setSearchParams({ mode: "store", storeNumber, tin });
@@ -61,9 +57,7 @@ export default function PublicPayView() {
           return;
         }
         const data = await getPublicStall(stallNumber, { date, fields: "min" });
-        const normalized = Array.isArray(data) ? data : [data];
-        setResults(normalized);
-        if (normalized.length === 0) setError("Rasta bo'yicha ma'lumot topilmadi");
+        setResults([data]);
         setSearchParams({ mode: "stall", stall: stallNumber, date });
       }
     } catch (err: any) {
@@ -246,13 +240,20 @@ export default function PublicPayView() {
             <div ref={resultsRef} className="space-y-4">
               {results.map((entry, idx) => (
                 <div
-                  key={entry.id || idx}
+                  key={"id" in entry ? entry.id : `${entry.stallNumber}-${entry.date}-${idx}`}
                   onClick={() => {
-                    const params = mode === 'store' 
-                      ? { contractId: entry.id, mode: 'contract' }
-                      : { mode: 'stall', stall: entry.stall?.stallNumber || stallNumber, date };
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const queryString = new URLSearchParams(params as any).toString();
+                    const params: Record<string, string> =
+                      mode === "store"
+                        ? {
+                            contractId: String((entry as PublicContractSearchResult).id),
+                            mode: "contract",
+                          }
+                        : {
+                            mode: "stall",
+                            stall: (entry as PublicStallDetail).stallNumber,
+                            date: (entry as PublicStallDetail).date,
+                          };
+                    const queryString = new URLSearchParams(params).toString();
                     navigate(`/pay/detail?${queryString}`);
                   }}
                   className="group relative p-6 bg-slate-50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 rounded-xl border border-transparent hover:border-blue-200 dark:hover:border-blue-800 shadow-sm hover:shadow-md transition-all cursor-pointer"
@@ -265,17 +266,17 @@ export default function PublicPayView() {
                       <div>
                         <h3 className="text-lg font-bold text-slate-900 dark:text-white group-hover:text-blue-600 transition-colors leading-none mb-1">
                           {mode === "store" 
-                            ? (entry.store?.storeNumber || `Shartnoma #${entry.id}`)
-                            : `Rasta: ${entry.stallNumber || entry.id}`}
+                            ? ((entry as PublicContractSearchResult).store?.storeNumber || `Shartnoma #${(entry as PublicContractSearchResult).id}`)
+                            : `Rasta: ${(entry as PublicStallDetail).stallNumber}`}
                         </h3>
                         <p className="text-sm text-muted-foreground font-medium flex items-center gap-2">
                           {mode === "store"
-                            ? (entry.owner?.fullName || "Tadbirkor ma'lumoti kiritilmagan")
-                            : `Sana: ${formatTashkentDate(entry.date)}`}
+                            ? ((entry as PublicContractSearchResult).owner?.fullName || "Tadbirkor ma'lumoti kiritilmagan")
+                            : `Sana: ${formatTashkentDate((entry as PublicStallDetail).date)}`}
                           
-                          {mode === "store" && getEntryDebtAmount(entry) > 0 && (
+                          {mode === "store" && getEntryDebtAmount(entry as PublicContractSearchResult) > 0 && (
                             <Badge variant="destructive" className="ml-2 h-5 px-2 text-[10px] font-bold">
-                              Qarzdorlik: {new Intl.NumberFormat("uz-UZ").format(getEntryDebtAmount(entry))} UZS
+                              Qarzdorlik: {new Intl.NumberFormat("uz-UZ").format(getEntryDebtAmount(entry as PublicContractSearchResult))} UZS
                             </Badge>
                           )}
                         </p>
