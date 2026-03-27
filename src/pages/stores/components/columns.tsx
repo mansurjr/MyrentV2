@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { useStores } from "../hooks/useStores";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { resolveStoreCurrentMonthPaid } from "@/lib/payment-status";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,14 +32,13 @@ interface ActionCellProps {
   onEdit: (store: Store) => void;
 }
 
-
 const ActionCell = ({ store, onEdit }: ActionCellProps) => {
   const { deleteStore, terminateContract } = useStores();
   const [isOpen, setIsOpen] = useState(false);
   const [emptyDialogOpen, setEmptyDialogOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const activeContract = store.contracts?.find(c => c.isActive);
+  const activeContract = store.contracts?.find((c) => c.isActive);
 
   const handleDelete = async () => {
     try {
@@ -99,7 +99,8 @@ const ActionCell = ({ store, onEdit }: ActionCellProps) => {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Do'konni bo'shatmoqchimisiz?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Bu amal natijasida amaldagi shartnoma yakunlanadi va do'kon bo'sh holatga o'tadi.
+                      Bu amal natijasida amaldagi shartnoma yakunlanadi va do'kon bo'sh holatga
+                      o'tadi.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -139,7 +140,8 @@ const ActionCell = ({ store, onEdit }: ActionCellProps) => {
               <AlertDialogHeader>
                 <AlertDialogTitle>Haqiqatan ham o'chirmoqchimisiz?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Bu amalni ortga qaytarib bo'lmaydi. Bu do'konga tegishli barcha ma'lumotlar tizimdan o'chiriladi.
+                  Bu amalni ortga qaytarib bo'lmaydi. Bu do'konga tegishli barcha ma'lumotlar
+                  tizimdan o'chiriladi.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -178,8 +180,8 @@ export const columns = (onEdit: (store: Store) => void): ColumnDef<Store>[] => [
     header: "Do'kon raqami",
     cell: ({ row }) => (
       <div className="font-medium">
-        <Badge 
-          variant="outline" 
+        <Badge
+          variant="outline"
           className="bg-primary/10 text-primary border-primary/20 text-sm font-bold py-1 px-3 shadow-sm"
         >
           {row.getValue("storeNumber")}
@@ -190,11 +192,7 @@ export const columns = (onEdit: (store: Store) => void): ColumnDef<Store>[] => [
   {
     accessorKey: "Section",
     header: "Bo'lim",
-    cell: ({ row }) => (
-      <div className="font-medium">
-        {row.original.section?.name || "—"}
-      </div>
-    ),
+    cell: ({ row }) => <div className="font-medium">{row.original.section?.name || "—"}</div>,
   },
   {
     accessorKey: "area",
@@ -218,16 +216,24 @@ export const columns = (onEdit: (store: Store) => void): ColumnDef<Store>[] => [
     header: "To'lov holati",
     cell: ({ row }) => {
       const isOccupied = row.original.isOccupied;
-      const isPaid = row.original.paidCurrentMonth;
-      
+      const isPaid = resolveStoreCurrentMonthPaid(row.original);
+
       if (!isOccupied) return "—";
 
+      if (isPaid === undefined) {
+        return (
+          <Badge variant="secondary" className="font-bold">
+            Aniqlanmagan
+          </Badge>
+        );
+      }
+
       return (
-        <Badge 
-          variant={isPaid ? "default" : "destructive"} 
+        <Badge
+          variant={isPaid ? "default" : "destructive"}
           className={cn(
             "font-bold text-white",
-            isPaid ? "bg-blue-600 hover:bg-blue-700" : "bg-red-600 hover:bg-red-700"
+            isPaid ? "bg-blue-600 hover:bg-blue-700" : "bg-red-600 hover:bg-red-700",
           )}
         >
           {isPaid ? "To'langan" : "To'lanmagan"}
@@ -240,16 +246,12 @@ export const columns = (onEdit: (store: Store) => void): ColumnDef<Store>[] => [
     header: "Tadbirkor",
     cell: ({ row }) => {
       const isOccupied = row.original.isOccupied;
-      const activeContract = row.original.contracts?.find(c => c.isActive);
+      const activeContract = row.original.contracts?.find((c) => c.isActive);
       const ownerName = activeContract?.owner?.fullName;
 
       if (!isOccupied || !ownerName) return "—";
 
-      return (
-        <div className="font-medium text-sm">
-          {ownerName}
-        </div>
-      );
+      return <div className="font-medium text-sm">{ownerName}</div>;
     },
   },
   {
@@ -257,11 +259,7 @@ export const columns = (onEdit: (store: Store) => void): ColumnDef<Store>[] => [
     header: "Tavsif",
     cell: ({ row }) => {
       const desc = row.getValue("description") as string;
-      return (
-        <div className="text-muted-foreground">
-          {desc || "—"}
-        </div>
-      );
+      return <div className="text-muted-foreground">{desc || "—"}</div>;
     },
   },
   {

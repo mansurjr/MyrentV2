@@ -34,6 +34,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { usePaymentMethodState } from "@/hooks/usePaymentMethodState";
 import { PaymentMethodDialog } from "@/components/payment/PaymentMethodDialog";
+import { resolveContractCurrentMonthPaid } from "@/lib/payment-status";
 
 interface ActionCellProps {
   contract: Contract;
@@ -311,12 +312,21 @@ export const columns = (
     header: "To'lov holati",
     cell: ({ row }) => {
       const contract = row.original;
+      const isCurrentMonthPaid = resolveContractCurrentMonthPaid(contract);
       const debtAmount =
         Number(
           debtByContractId[contract.id] ??
             0,
         ) || 0;
-      
+
+      if (isCurrentMonthPaid === true) {
+        return (
+          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-semibold shadow-sm">
+            To'langan
+          </Badge>
+        );
+      }
+
       if (debtAmount > 0) {
         return (
           <Badge variant="destructive" className="font-semibold shadow-sm">
@@ -324,10 +334,10 @@ export const columns = (
           </Badge>
         );
       }
-      
+
       return (
-        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 font-semibold shadow-sm">
-          To'langan
+        <Badge variant="secondary" className="font-semibold shadow-sm">
+          To'lanmagan
         </Badge>
       );
     },

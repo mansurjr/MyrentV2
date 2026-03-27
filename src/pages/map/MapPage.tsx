@@ -43,6 +43,7 @@ import { getAdminAttendancePaymentUrl } from "@/api/payments";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/api-error";
 import { usePaymentMethodState } from "@/hooks/usePaymentMethodState";
 import { PaymentMethodDialog } from "@/components/payment/PaymentMethodDialog";
+import { resolveStoreCurrentMonthPaid } from "@/lib/payment-status";
 
 export default function MapPage() {
   const { t } = useTranslation();
@@ -105,6 +106,24 @@ export default function MapPage() {
     isLoading: isContractLoading,
     refetch: refetchContractDetail,
   } = useGetContract(itemData?.contracts?.[0]?.id);
+
+  const resolveStorePaidState = (store: any) => {
+    if (!store) return undefined;
+
+    if (!contractDetail || contractDetail.id !== store.contracts?.[0]?.id) {
+      return resolveStoreCurrentMonthPaid(store);
+    }
+
+    return resolveStoreCurrentMonthPaid({
+      ...store,
+      contracts: [contractDetail, ...(store.contracts?.slice(1) ?? [])],
+    });
+  };
+
+  const selectedStorePaidState = useMemo(() => {
+    if (selectedItem?.type !== "store") return undefined;
+    return resolveStorePaidState(itemData);
+  }, [selectedItem, itemData, contractDetail]);
 
   const todayAttendance = useMemo(() => {
     if (selectedItem?.type !== 'stall' || !itemData) return null;
@@ -307,14 +326,16 @@ export default function MapPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3">
                   {stores.map((store: any) => {
                     const isTaken = store.isOccupied;
-                    const isPaid = store.paidCurrentMonth;
+                    const isPaid = resolveStorePaidState(store);
                     
                     let statusClasses = "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400";
                     if (isTaken) {
-                      if (isPaid) {
+                      if (isPaid === true) {
                         statusClasses = "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400";
-                      } else {
+                      } else if (isPaid === false) {
                         statusClasses = "bg-red-50 border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400";
+                      } else {
+                        statusClasses = "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400";
                       }
                     }
 
@@ -329,7 +350,7 @@ export default function MapPage() {
                       >
                         <span className="text-sm font-black leading-none">{store.storeNumber}</span>
                         <span className="text-[10px] font-medium opacity-60 mt-1">{store.area} {t("common.area_unit")}</span>
-                        {isTaken && !isPaid && (
+                        {isTaken && isPaid === false && (
                           <div className="absolute top-1 right-1">
                             <span className="flex h-2 w-2 rounded-full bg-red-500 animate-pulse" />
                           </div>
@@ -431,7 +452,15 @@ export default function MapPage() {
                   const todayStr = format(new Date(), "yyyy-MM-dd");
                   const isPaid = selectedItem?.type === 'stall' 
                     ? selectedItem?.data.attendances?.some((a: any) => format(new Date(a.date), "yyyy-MM-dd") === todayStr && a.status === 'PAID')
-                    : selectedItem?.data.paidCurrentMonth;
+                    : selectedStorePaidState;
+
+                  if (isPaid === undefined) {
+                    return (
+                      <Badge variant="secondary" className="font-bold">
+                        Aniqlanmagan
+                      </Badge>
+                    );
+                  }
 
                   return (
                     <Badge 
@@ -537,7 +566,7 @@ export default function MapPage() {
             </DialogFooter>
           ) : selectedItem?.type === 'store' && itemData?.contracts?.[0] ? (
             <DialogFooter className="mt-6 flex flex-col gap-2">
-              {!itemData.paidCurrentMonth ? (
+              {selectedStorePaidState === false ? (
                 <div className="flex flex-col gap-2 w-full">
                   <Button 
                     onClick={() => {
@@ -555,10 +584,14 @@ export default function MapPage() {
                     {t("common.pay")}
                   </Button>
                 </div>
-              ) : (
+              ) : selectedStorePaidState === true ? (
                 <div className="w-full p-2 bg-blue-50 text-blue-700 rounded-lg text-center text-sm font-bold flex items-center justify-center gap-2">
                   <CheckCircle2 className="h-4 w-4" />
                   {t("common.paid")}
+                </div>
+              ) : (
+                <div className="w-full p-2 bg-amber-50 text-amber-700 rounded-lg text-center text-sm font-bold">
+                  To'lov holati aniqlanmoqda
                 </div>
               )}
             </DialogFooter>
