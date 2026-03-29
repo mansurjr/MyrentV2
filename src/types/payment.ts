@@ -33,7 +33,14 @@ export interface PublicContractDetail {
     fullName: string | null;
   };
   paymentPeriods: ContractPaymentPeriod[];
+  pendingPeriods?: ContractPaymentPeriod[];
   availableMethods?: PublicPaymentMethod[];
+  paymentSelectionPolicy?: {
+    mode?: string;
+    allowArbitraryMonthCombination?: boolean;
+    allowStartFromAnyPendingMonth?: boolean;
+    autoGeneratesFuturePeriodsThroughExpiry?: boolean;
+  };
 }
 
 export interface PublicContractPaymentUrlRequest {

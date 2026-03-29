@@ -32,7 +32,16 @@ export const getPublicStall = async (
 
 export const getPublicContractDetail = async (contractId: number) => {
   const response = await baseApi.get<PublicContractDetail>(`/public/contracts/${contractId}`);
-  return response.data;
+  const normalizedPaymentPeriods =
+    response.data.paymentPeriods ??
+    response.data.pendingPeriods ??
+    [];
+
+  return {
+    ...response.data,
+    paymentPeriods: normalizedPaymentPeriods,
+    pendingPeriods: response.data.pendingPeriods ?? normalizedPaymentPeriods,
+  };
 };
 
 export const createPublicContractPaymentUrl = async (
