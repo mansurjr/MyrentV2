@@ -75,6 +75,8 @@ import {
 import type { Attendance } from "@/types/api-responses";
 import { getAdminAttendancePaymentUrl } from "@/api/payments";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/api-error";
+import { usePaymentMethodState } from "@/hooks/usePaymentMethodState";
+import { PaymentMethodDialog } from "@/components/payment/PaymentMethodDialog";
 import {
   getPendingContractPeriodPrefixThroughId,
   getPendingContractPeriods,
@@ -159,6 +161,8 @@ export function ReconciliationView() {
   } | null>(null);
 
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [isContractPaymentDialogOpen, setIsContractPaymentDialogOpen] = useState(false);
+  const [pendingContractPeriodIds, setPendingContractPeriodIds] = useState<string[]>([]);
   const [editedAmounts, setEditedAmounts] = useState<Record<string, string>>({});
   const [editingPeriodId, setEditingPeriodId] = useState<string | null>(null);
   const [tempAmount, setTempAmount] = useState<string>("");
@@ -233,6 +237,7 @@ export function ReconciliationView() {
     () => contractsData?.data?.find((c) => c.id === selectedContractId),
     [contractsData, selectedContractId],
   );
+  const contractPayment = usePaymentMethodState(selectedContract?.availableMethods ?? null);
 
   const paymentHistory = useMemo(() => {
     if (!selectedContract || !selectedContract.paymentPeriods) return [];
@@ -402,9 +407,16 @@ export function ReconciliationView() {
       return;
     }
 
+    if (!contractPayment.selectedMethod) {
+      contractPayment.setPaymentError("To'lov usulini tanlang");
+      return;
+    }
+
+    contractPayment.setPaymentError(null);
     setIsRedirecting(true);
     try {
-      await automatePaymentRedirect(selectedContract.id, periodIds);
+      await automatePaymentRedirect(selectedContract.id, periodIds, contractPayment.selectedMethod);
+      setIsContractPaymentDialogOpen(false);
     } catch (error) {
       const status = getApiErrorStatus(error);
       if (status === 400 || status === 409) {
@@ -419,12 +431,18 @@ export function ReconciliationView() {
           "To'lov holati yangilandi. Iltimos, shartnomani qayta tekshirib ko'ring.",
         ),
       });
+      contractPayment.setPaymentError(
+        getApiErrorMessage(
+          error,
+          "To'lov holati yangilandi. Iltimos, shartnomani qayta tekshirib ko'ring.",
+        ),
+      );
     } finally {
       setIsRedirecting(false);
     }
   };
 
-  const openContractPaymentDialog = async (periodIds: string[]) => {
+  const openContractPaymentDialog = (periodIds: string[]) => {
     if (!selectedContract) {
       return;
     }
@@ -434,7 +452,9 @@ export function ReconciliationView() {
       return;
     }
 
-    await handleContractRedirect(periodIds);
+    setPendingContractPeriodIds(periodIds);
+    contractPayment.setPaymentError(null);
+    setIsContractPaymentDialogOpen(true);
   };
 
   const handleAdvancePayment = async () => {
@@ -1031,7 +1051,7 @@ export function ReconciliationView() {
                                   : [];
                                 
                                 if (selectedContract.paymentType === "BANK" || pendingPeriods.length > 0) {
-                                  void openContractPaymentDialog(pendingPeriods);
+                                  openContractPaymentDialog(pendingPeriods);
                                 }
                               }}
                               disabled={isRedirecting}
@@ -1211,7 +1231,7 @@ export function ReconciliationView() {
                                               selectedContract.paymentPeriods,
                                               month.id,
                                             ).map((period) => period.id);
-                                            void openContractPaymentDialog(periodIds);
+                                            openContractPaymentDialog(periodIds);
                                           }}
                                           disabled={isRedirecting}
                                           className="text-[10px] text-primary font-bold hover:underline flex items-center gap-1 disabled:opacity-50">
@@ -1435,6 +1455,18 @@ export function ReconciliationView() {
           onOpenChange={setIsManualPayOpen}
         />
       )}
+      <PaymentMethodDialog
+        open={isContractPaymentDialogOpen}
+        onOpenChange={setIsContractPaymentDialogOpen}
+        availableMethods={contractPayment.availableMethods}
+        selectedMethod={contractPayment.selectedMethod}
+        onSelect={contractPayment.setSelectedMethod}
+        onConfirm={() => {
+          void handleContractRedirect(pendingContractPeriodIds);
+        }}
+        loading={isRedirecting}
+        error={contractPayment.paymentError}
+      />
     </div>
   );
 }

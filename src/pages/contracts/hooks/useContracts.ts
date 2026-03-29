@@ -4,6 +4,7 @@ import type { Contract, ContractListResponse } from "../../../types/api-response
 import { createAdminContractPaymentUrl } from "@/api/payments";
 import { getApiErrorStatus } from "@/lib/api-error";
 import { normalizePeriodIds } from "@/lib/payment";
+import type { PublicPaymentMethod } from "@/types/payment";
 
 export interface ICreateContractDto {
   certificateNumber?: string;
@@ -167,6 +168,7 @@ export const useContracts = () => {
   const getPaymentUrl = async (
     id: number,
     periodIds: string[],
+    _method?: PublicPaymentMethod,
   ) => {
     return createAdminContractPaymentUrl(id, {
       periodIds: normalizePeriodIds(periodIds),
@@ -176,6 +178,7 @@ export const useContracts = () => {
   const automatePaymentRedirect = async (
     id: number,
     periodIds: string[],
+    method?: PublicPaymentMethod,
   ) => {
     try {
       const normalizedPeriodIds = normalizePeriodIds(periodIds);
@@ -183,7 +186,7 @@ export const useContracts = () => {
         throw new Error("No pending payment periods selected");
       }
 
-      const response = await getPaymentUrl(id, normalizedPeriodIds);
+      const response = await getPaymentUrl(id, normalizedPeriodIds, method);
       if (response?.url) {
         window.open(response.url, '_blank');
       } else {

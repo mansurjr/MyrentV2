@@ -41,6 +41,8 @@ import { uz } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { getAdminAttendancePaymentUrl } from "@/api/payments";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/api-error";
+import { usePaymentMethodState } from "@/hooks/usePaymentMethodState";
+import { PaymentMethodDialog } from "@/components/payment/PaymentMethodDialog";
 import { getPendingContractPeriods } from "@/lib/payment";
 import { resolveStoreCurrentMonthPaid } from "@/lib/payment-status";
 
@@ -52,6 +54,7 @@ export default function MapPage() {
   const [stallSearch, setStallSearch] = useState("");
   const [selectedSection, setSelectedSection] = useState<string>("all");
   const [attendancePaymentLoading, setAttendancePaymentLoading] = useState(false);
+  const [isContractPaymentDialogOpen, setIsContractPaymentDialogOpen] = useState(false);
   const [contractPaymentLoading, setContractPaymentLoading] = useState(false);
   const debouncedStoreSearch = useDebounce(storeSearch, 500);
   const debouncedStallSearch = useDebounce(stallSearch, 500);
@@ -131,6 +134,9 @@ export default function MapPage() {
       format(new Date(a.date), "yyyy-MM-dd") === todayStr
     );
   }, [selectedItem, itemData]);
+  const contractPayment = usePaymentMethodState(
+    itemData?.contracts?.[0]?.availableMethods ?? contractDetail?.availableMethods ?? null,
+  );
 
   const handleQuickAttendance = async () => {
     if (selectedItem?.type !== 'stall' || !itemData) return;
@@ -187,9 +193,20 @@ export default function MapPage() {
       return;
     }
 
+    if (!contractPayment.selectedMethod) {
+      contractPayment.setPaymentError("To'lov usulini tanlang");
+      return;
+    }
+
+    contractPayment.setPaymentError(null);
     setContractPaymentLoading(true);
     try {
-      await automatePaymentRedirect(contract.id, [earliestPendingPeriod.id]);
+      await automatePaymentRedirect(
+        contract.id,
+        [earliestPendingPeriod.id],
+        contractPayment.selectedMethod,
+      );
+      setIsContractPaymentDialogOpen(false);
     } catch (error) {
       const status = getApiErrorStatus(error);
       if (status === 400 || status === 409) {
@@ -204,6 +221,12 @@ export default function MapPage() {
         ),
         variant: "destructive",
       });
+      contractPayment.setPaymentError(
+        getApiErrorMessage(
+          error,
+          "To'lov holati yangilandi. Iltimos, shartnomani qayta tekshirib ko'ring.",
+        ),
+      );
     } finally {
       setContractPaymentLoading(false);
     }
@@ -533,7 +556,8 @@ export default function MapPage() {
                 <div className="flex flex-col gap-2 w-full">
                   <Button 
                     onClick={() => {
-                      void handleContractPay();
+                      contractPayment.setPaymentError(null);
+                      setIsContractPaymentDialogOpen(true);
                     }}
                     className="bg-blue-600 hover:bg-blue-700 font-bold w-full"
                     disabled={isContractLoading || contractPaymentLoading}
@@ -560,6 +584,18 @@ export default function MapPage() {
           ) : null}
         </DialogContent>
       </Dialog>
+      <PaymentMethodDialog
+        open={isContractPaymentDialogOpen}
+        onOpenChange={setIsContractPaymentDialogOpen}
+        availableMethods={contractPayment.availableMethods}
+        selectedMethod={contractPayment.selectedMethod}
+        onSelect={contractPayment.setSelectedMethod}
+        onConfirm={() => {
+          void handleContractPay();
+        }}
+        loading={contractPaymentLoading}
+        error={contractPayment.paymentError}
+      />
     </div>
   );
 }

@@ -41,10 +41,7 @@ export const createPublicContractPaymentUrl = async (
 ) => {
   const response = await baseApi.post<PaymentUrlResponse>(
     `/public/contracts/${contractId}/payment-url`,
-    {
-      ...payload,
-      method: CLICK_PAYMENT_METHOD,
-    },
+    payload,
   );
   return response.data;
 };

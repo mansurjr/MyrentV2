@@ -52,12 +52,8 @@ export const normalizePublicPaymentMethods = (methods?: readonly string[]) => {
 
 export const resolveAvailablePaymentMethods = (methods?: readonly string[] | null) => {
   const normalizedMethods = normalizePublicPaymentMethods(methods ?? undefined);
-  const supportedMethods = normalizedMethods.filter((method) =>
-    configuredPaymentMethods.includes(method),
-  );
-
   if (methods && methods.length > 0) {
-    return supportedMethods.length > 0 ? supportedMethods : configuredPaymentMethods;
+    return normalizedMethods;
   }
 
   return configuredPaymentMethods;
