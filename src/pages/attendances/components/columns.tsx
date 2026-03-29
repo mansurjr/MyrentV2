@@ -5,45 +5,21 @@ import { CheckCircle2, Trash2, Loader2, QrCode } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Stall, Attendance } from "@/types/api-responses";
 import { useState } from "react";
-import { usePaymentMethodState } from "@/hooks/usePaymentMethodState";
-import { PaymentMethodDialog } from "@/components/payment/PaymentMethodDialog";
-import type { PublicPaymentMethod } from "@/types/payment";
 
 const PaymentButton = ({
   attendanceId,
   onGetPaymentUrl,
-  availableMethods,
 }: {
   attendanceId: number;
-  onGetPaymentUrl: (
-    attendanceId: number,
-    method: PublicPaymentMethod,
-  ) => Promise<string | null>;
-  availableMethods?: readonly string[] | null;
+  onGetPaymentUrl: (attendanceId: number) => Promise<string | null>;
 }) => {
-  const [open, setOpen] = useState(false);
-  const {
-    availableMethods: resolvedMethods,
-    selectedMethod,
-    setSelectedMethod,
-    paymentUrlLoading,
-    setPaymentUrlLoading,
-    paymentError,
-    setPaymentError,
-  } = usePaymentMethodState(availableMethods ?? null);
+  const [paymentUrlLoading, setPaymentUrlLoading] = useState(false);
 
   const handlePay = async () => {
-    if (!selectedMethod) {
-      setPaymentError("To'lov usulini tanlang");
-      return;
-    }
-
-    setPaymentError(null);
     setPaymentUrlLoading(true);
     try {
-      const url = await onGetPaymentUrl(attendanceId, selectedMethod);
+      const url = await onGetPaymentUrl(attendanceId);
       if (url) {
-        setOpen(false);
         window.open(url, "_blank");
       }
     } finally {
@@ -52,35 +28,20 @@ const PaymentButton = ({
   };
 
   return (
-    <>
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={paymentUrlLoading}
-        className={cn(
-          "h-8 px-3 font-medium transition-all text-xs",
-          "border-[#00A7E1]/30 text-[#00A7E1] hover:bg-[#00A7E1]/10 hover:text-[#00A7E1]",
-        )}
-        onClick={() => setOpen(true)}
-      >
-        {paymentUrlLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "To'lash"}
-      </Button>
-      <PaymentMethodDialog
-        open={open}
-        onOpenChange={setOpen}
-        availableMethods={resolvedMethods}
-        selectedMethod={selectedMethod}
-        onSelect={setSelectedMethod}
-        onConfirm={() => {
-          void handlePay();
-        }}
-        loading={paymentUrlLoading}
-        error={paymentError}
-        title="To'lov usulini tanlang"
-        description="Davom etish uchun provider tanlang."
-        submitLabel="To'lovga o'tish"
-      />
-    </>
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={paymentUrlLoading}
+      className={cn(
+        "h-8 px-3 font-medium transition-all text-xs",
+        "border-[#00A7E1]/30 text-[#00A7E1] hover:bg-[#00A7E1]/10 hover:text-[#00A7E1]",
+      )}
+      onClick={() => {
+        void handlePay();
+      }}
+    >
+      {paymentUrlLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "To'lash"}
+    </Button>
   );
 };
 
@@ -88,10 +49,7 @@ export const columns = (
   attendances: Attendance[],
   onCreate: (stallId: string | number, amount: number) => void,
   onDelete: (id: number) => void,
-  onGetPaymentUrl: (
-    attendanceId: number,
-    method: PublicPaymentMethod,
-  ) => Promise<string | null>,
+  onGetPaymentUrl: (attendanceId: number) => Promise<string | null>,
   isLoading: boolean,
   t: any,
 ): ColumnDef<Stall>[] => [
@@ -175,7 +133,6 @@ export const columns = (
             <div className="flex items-center gap-2 mr-2">
               <PaymentButton
                 attendanceId={attendance.id}
-                availableMethods={attendance.availableMethods}
                 onGetPaymentUrl={onGetPaymentUrl}
               />
             </div>

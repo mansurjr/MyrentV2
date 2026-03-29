@@ -24,6 +24,16 @@ const configuredPaymentMethods = (() => {
 })();
 
 export const CLICK_PAYMENT_METHOD = "click" as const;
+const compareContractPeriods = (
+  left: Pick<ContractPaymentPeriod, "year" | "month">,
+  right: Pick<ContractPaymentPeriod, "year" | "month">,
+) => {
+  if (left.year !== right.year) {
+    return left.year - right.year;
+  }
+
+  return left.month - right.month;
+};
 
 export const normalizePublicPaymentMethods = (methods?: readonly string[]) => {
   const normalized =
@@ -42,8 +52,12 @@ export const normalizePublicPaymentMethods = (methods?: readonly string[]) => {
 
 export const resolveAvailablePaymentMethods = (methods?: readonly string[] | null) => {
   const normalizedMethods = normalizePublicPaymentMethods(methods ?? undefined);
+  const supportedMethods = normalizedMethods.filter((method) =>
+    configuredPaymentMethods.includes(method),
+  );
+
   if (methods && methods.length > 0) {
-    return normalizedMethods;
+    return supportedMethods.length > 0 ? supportedMethods : configuredPaymentMethods;
   }
 
   return configuredPaymentMethods;
@@ -53,7 +67,33 @@ export const getPaymentMethodLabel = (method: PublicPaymentMethod) =>
   PAYMENT_METHOD_LABELS[method];
 
 export const getPendingContractPeriods = (periods: readonly ContractPaymentPeriod[]) =>
-  periods.filter((period) => period.status === "PENDING");
+  periods
+    .filter((period) => period.status === "PENDING")
+    .sort(compareContractPeriods);
+
+export const getPendingContractPeriodPrefix = (
+  periods: readonly ContractPaymentPeriod[],
+  count: number,
+) => {
+  const pendingPeriods = getPendingContractPeriods(periods);
+  const normalizedCount = Math.max(0, Math.min(count, pendingPeriods.length));
+
+  return pendingPeriods.slice(0, normalizedCount);
+};
+
+export const getPendingContractPeriodPrefixThroughId = (
+  periods: readonly ContractPaymentPeriod[],
+  targetPeriodId: string,
+) => {
+  const pendingPeriods = getPendingContractPeriods(periods);
+  const targetIndex = pendingPeriods.findIndex((period) => period.id === targetPeriodId);
+
+  if (targetIndex < 0) {
+    return [];
+  }
+
+  return pendingPeriods.slice(0, targetIndex + 1);
+};
 
 export const sumContractPeriods = (
   periods: Array<Pick<ContractPaymentPeriod, "amount">>,

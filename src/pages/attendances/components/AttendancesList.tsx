@@ -74,9 +74,9 @@ export function AttendancesList() {
     }
   };
 
-  const handleGetPaymentUrl = async (attendanceId: number, method: "click" | "payme") => {
+  const handleGetPaymentUrl = async (attendanceId: number) => {
     try {
-      const response = await getAdminAttendancePaymentUrl(attendanceId, method);
+      const response = await getAdminAttendancePaymentUrl(attendanceId);
       return response.url;
     } catch (error) {
       const status = getApiErrorStatus(error);

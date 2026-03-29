@@ -35,6 +35,7 @@ import type {
 } from "@/types/payment";
 import {
   getPendingContractPeriods,
+  getPendingContractPeriodPrefix,
   normalizePeriodIds,
   sumContractPeriods,
 } from "@/lib/payment";
@@ -57,7 +58,7 @@ export default function PublicPayDetailView() {
   const [data, setData] = useState<PaymentDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [selectedPeriods, setSelectedPeriods] = useState<string[]>([]);
+  const [selectedPeriodCount, setSelectedPeriodCount] = useState(0);
   const requestIdRef = useRef(0);
 
   const fetchData = async () => {
@@ -68,12 +69,16 @@ export default function PublicPayDetailView() {
       if (isContractMode && contractId) {
         const response = await getPublicContractDetail(Number(contractId));
         const pendingPeriods = getPendingContractPeriods(response.paymentPeriods);
-        const pendingIds = normalizePeriodIds(pendingPeriods.map((period) => period.id));
 
         setData(response);
-        setSelectedPeriods((currentIds) => {
-          const preservedIds = currentIds.filter((periodId) => pendingIds.includes(periodId));
-          return preservedIds.length > 0 ? preservedIds : pendingIds;
+        setSelectedPeriodCount((currentCount) => {
+          if (pendingPeriods.length === 0) {
+            return 0;
+          }
+
+          return currentCount > 0
+            ? Math.min(currentCount, pendingPeriods.length)
+            : 1;
         });
         return;
       }
@@ -81,16 +86,16 @@ export default function PublicPayDetailView() {
       if (!isContractMode && stallNumber && date) {
         const response = await getPublicStall(stallNumber, { date });
         setData(response);
-        setSelectedPeriods([]);
+        setSelectedPeriodCount(0);
         return;
       }
 
       setError("Ma'lumotlar yetarli emas");
       setData(null);
-      setSelectedPeriods([]);
+      setSelectedPeriodCount(0);
     } catch (err) {
       setData(null);
-      setSelectedPeriods([]);
+      setSelectedPeriodCount(0);
       setError(getApiErrorMessage(err, "Ma'lumotlarni yuklashda xatolik"));
     } finally {
       setLoading(false);
@@ -124,17 +129,22 @@ export default function PublicPayDetailView() {
     setPaymentError,
   } = usePaymentMethodState(contractData?.availableMethods ?? stallData?.availableMethods ?? null);
   const pendingPeriods = contractData ? getPendingContractPeriods(contractData.paymentPeriods) : [];
-  const selectedPendingPeriods = pendingPeriods.filter((period) => selectedPeriods.includes(period.id));
+  const selectedPendingPeriods = contractData
+    ? getPendingContractPeriodPrefix(contractData.paymentPeriods, selectedPeriodCount)
+    : [];
   const amountToPay = contractData
     ? sumContractPeriods(selectedPendingPeriods)
     : Number(stallData?.dailyFee ?? 0);
   const isPaid = contractData ? pendingPeriods.length === 0 : stallData?.status === "PAID";
 
   const togglePeriod = (id: string) => {
-    setSelectedPeriods((currentIds) =>
-      currentIds.includes(id)
-        ? currentIds.filter((periodId) => periodId !== id)
-        : [...currentIds, id],
+    const periodIndex = pendingPeriods.findIndex((period) => period.id === id);
+    if (periodIndex < 0) {
+      return;
+    }
+
+    setSelectedPeriodCount((currentCount) =>
+      currentCount > periodIndex ? periodIndex : periodIndex + 1,
     );
   };
 
@@ -300,21 +310,27 @@ export default function PublicPayDetailView() {
                     </span>
                     <button
                       onClick={() => {
-                        if (selectedPeriods.length === pendingPeriods.length) {
-                          setSelectedPeriods([]);
+                        if (selectedPendingPeriods.length === pendingPeriods.length) {
+                          setSelectedPeriodCount(0);
                         } else {
-                          setSelectedPeriods(pendingPeriods.map((period) => period.id));
+                          setSelectedPeriodCount(pendingPeriods.length);
                         }
                       }}
                       className="text-[10px] font-bold text-blue-600 uppercase hover:underline">
-                      {selectedPeriods.length === pendingPeriods.length
+                      {selectedPendingPeriods.length === pendingPeriods.length
                         ? "Barchasini bekor qilish"
                         : "Barchasini tanlash"}
                     </button>
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Eng yaqin to'lanmagan oy birinchi tanlanadi. Keyingi oylarni tanlasangiz,
+                    oldingi qarzdor oylar ham avtomatik qo'shiladi.
+                  </p>
                   <div className="grid gap-2">
                     {pendingPeriods.map((period) => {
-                      const isSelected = selectedPeriods.includes(period.id);
+                      const isSelected = selectedPendingPeriods.some(
+                        (selectedPeriod) => selectedPeriod.id === period.id,
+                      );
                       return (
                         <div
                           key={period.id}
