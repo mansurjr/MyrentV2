@@ -51,6 +51,8 @@ const DEFAULT_OCCUPANCY = {
   stores: { total: 0, rented: 0, percentage: 0, empty: 0 },
 };
 
+const UZBEK_DATE_LOCALE = "uz-Latn-UZ";
+
 const toNumber = (value: unknown, fallback = 0) => {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : fallback;
@@ -172,20 +174,20 @@ const StatisticsPage = () => {
   );
   const monthLabelFormatter = useMemo(
     () =>
-      new Intl.DateTimeFormat(locale, {
+      new Intl.DateTimeFormat(UZBEK_DATE_LOCALE, {
         month: "long",
         year: "numeric",
       }),
-    [locale],
+    [],
   );
 
   const monthOptions = useMemo(
     () =>
       Array.from({ length: 12 }, (_, index) => ({
         value: index + 1,
-        label: new Intl.DateTimeFormat(locale, { month: "long" }).format(new Date(selectedYear, index, 1)),
+        label: new Intl.DateTimeFormat(UZBEK_DATE_LOCALE, { month: "long" }).format(new Date(selectedYear, index, 1)),
       })),
-    [locale, selectedYear],
+    [selectedYear],
   );
   const yearOptions = useMemo(() => {
     const currentYear = today.getFullYear();
@@ -230,14 +232,14 @@ const StatisticsPage = () => {
     const { labels, series } = monthlySeriesQuery.data;
     return labels.map((label: string, index: number) => {
       const dataPoint: Record<string, string | number> = {
-        name: formatSeriesLabel(label, locale),
+        name: formatSeriesLabel(label, UZBEK_DATE_LOCALE),
       };
       (series as { key: string; data: number[] }[]).forEach((s) => {
         dataPoint[s.key] = s.data[index] || 0;
       });
       return dataPoint;
     });
-  }, [locale, monthlySeriesQuery.data]);
+  }, [monthlySeriesQuery.data]);
 
   const stats = useMemo(() => {
     if (!byEntityQuery.data) return [];
@@ -370,7 +372,7 @@ const StatisticsPage = () => {
             dailyPayments={dashboardData.dailyPayments}
             month={selectedMonth}
             year={selectedYear}
-            locale={locale}
+            locale={UZBEK_DATE_LOCALE}
             monthLabel={selectedMonthLabel}
         />
 
