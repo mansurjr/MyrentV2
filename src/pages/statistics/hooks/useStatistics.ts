@@ -29,6 +29,49 @@ export interface IReconciliationContractsResponse {
   [key: string]: unknown;
 }
 
+export interface IDailyPaymentsMetric {
+  count?: number;
+  revenue?: number;
+}
+
+export interface IDailyPaymentsDay {
+  date?: string;
+  day?: number;
+  count?: number;
+  revenue?: number;
+  stall?: IDailyPaymentsMetric;
+  store?: IDailyPaymentsMetric;
+}
+
+export interface IDailyPaymentsTotals extends IDailyPaymentsMetric {
+  stall?: IDailyPaymentsMetric;
+  store?: IDailyPaymentsMetric;
+}
+
+export interface IDailyPaymentsSummary {
+  month?: string;
+  from?: string;
+  to?: string;
+  type?: string;
+  totals?: IDailyPaymentsTotals;
+  days?: IDailyPaymentsDay[];
+}
+
+export interface IDashboardStatsResponse {
+  expectedPayments?: {
+    week?: { paid?: number; estimated?: number };
+    month?: { paid?: number; estimated?: number };
+    year?: { paid?: number; estimated?: number };
+  };
+  occupancy?: {
+    stalls?: { total?: number; rented?: number; percentage?: number; empty?: number };
+    stores?: { total?: number; rented?: number; percentage?: number; empty?: number };
+  };
+  topDebtors?: Array<Record<string, unknown>>;
+  dailyPayments?: IDailyPaymentsSummary;
+  [key: string]: unknown;
+}
+
 export const useStatistics = () => {
   const getMonthlySeries = (params: { months?: number; type?: string }) => {
     return useQuery({
@@ -74,11 +117,13 @@ export const useStatistics = () => {
     });
   };
 
-  const getDashboardStats = () => {
+  const getDashboardStats = (params: { month?: number; year?: number } = {}) => {
     return useQuery({
-      queryKey: ["statistics", "dashboard"],
+      queryKey: ["statistics", "dashboard", params],
       queryFn: async () => {
-        const { data } = await baseApi.get("/statistics/dashboard");
+        const { data } = await baseApi.get<IDashboardStatsResponse>("/statistics/dashboard", {
+          params,
+        });
         return data;
       },
     });

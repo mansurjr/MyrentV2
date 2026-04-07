@@ -1,10 +1,11 @@
 import React, { memo, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { 
-  TrendingUp, 
-  Store, 
-  LayoutGrid, 
-  Loader2
+import {
+  TrendingUp,
+  Store,
+  LayoutGrid,
+  Loader2,
+  CalendarDays,
 } from "lucide-react";
 import {
   Card,
@@ -34,7 +35,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { DailyPaymentsSection } from "./components/DailyPaymentsSection";
 import { useStatistics } from "./hooks/useStatistics";
+
+type PaymentPeriod = "week" | "month" | "year";
+
+const DEFAULT_EXPECTED_PAYMENTS = {
+  week: { paid: 0, estimated: 0 },
+  month: { paid: 0, estimated: 0 },
+  year: { paid: 0, estimated: 0 },
+};
+
+const DEFAULT_OCCUPANCY = {
+  stalls: { total: 0, rented: 0, percentage: 0, empty: 0 },
+  stores: { total: 0, rented: 0, percentage: 0, empty: 0 },
+};
 
 const toNumber = (value: unknown, fallback = 0) => {
   const numeric = Number(value);
@@ -51,14 +66,16 @@ const firstNumber = (source: Record<string, unknown>, keys: string[], fallback =
   return fallback;
 };
 
-const firstCount = (source: Record<string, unknown>, keys: string[], fallback = 0) => {
-  for (const key of keys) {
-    if (key in source) {
-      const value = toNumber(source[key], NaN);
-      if (Number.isFinite(value)) return value;
-    }
+const resolveLocale = (language?: string) => {
+  switch (language) {
+    case "en":
+      return "en-US";
+    case "uz-cyr":
+      return "uz-Cyrl-UZ";
+    case "uz-lat":
+    default:
+      return "uz-Latn-UZ";
   }
-  return fallback;
 };
 
 interface StatCardProps {
@@ -99,50 +116,90 @@ const StatCard = ({ title, value, description, icon: Icon, color, className }: S
 );
 
 const StatisticsPage = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { getMonthlySeries, getRevenueByEntity, getDashboardStats } = useStatistics();
 
-  const now = new Date();
-  const currentMonth = now.getMonth() + 1;
-  const currentYear = now.getFullYear();
+  const today = useMemo(() => new Date(), []);
+  const [selectedMonth, setSelectedMonth] = React.useState(today.getMonth() + 1);
+  const [selectedYear, setSelectedYear] = React.useState(today.getFullYear());
+  const [paymentPeriod, setPaymentPeriod] = React.useState<PaymentPeriod>("month");
 
   const monthlySeriesQuery = getMonthlySeries({ months: 12 });
-  const byEntityQuery = getRevenueByEntity({ month: currentMonth, year: currentYear });
-  const dashboardStatsQuery = getDashboardStats();
+  const byEntityQuery = getRevenueByEntity({ month: selectedMonth, year: selectedYear });
+  const dashboardStatsQuery = getDashboardStats({ month: selectedMonth, year: selectedYear });
 
-  const [paymentPeriod, setPaymentPeriod] = React.useState<"week" | "month" | "year">("month");
+  const locale = useMemo(() => resolveLocale(i18n.resolvedLanguage), [i18n.resolvedLanguage]);
+  const currencyFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: "UZS",
+        maximumFractionDigits: 0,
+      }),
+    [locale],
+  );
+  const compactCurrencyFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: "UZS",
+        notation: "compact",
+        maximumFractionDigits: 1,
+      }),
+    [locale],
+  );
+  const monthLabelFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        month: "long",
+        year: "numeric",
+      }),
+    [locale],
+  );
+
+  const monthOptions = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, index) => ({
+        value: index + 1,
+        label: new Intl.DateTimeFormat(locale, { month: "long" }).format(new Date(selectedYear, index, 1)),
+      })),
+    [locale, selectedYear],
+  );
+  const yearOptions = useMemo(() => {
+    const currentYear = today.getFullYear();
+    return Array.from({ length: 6 }, (_, index) => currentYear - 4 + index);
+  }, [today]);
+  const selectedMonthLabel = useMemo(
+    () => monthLabelFormatter.format(new Date(selectedYear, selectedMonth - 1, 1)),
+    [monthLabelFormatter, selectedMonth, selectedYear],
+  );
 
   const dashboardData = dashboardStatsQuery.data || {};
-  
-  const expectedPayments = dashboardData.expectedPayments || {
-    week: { paid: 0, estimated: 0 },
-    month: { paid: 0, estimated: 0 },
-    year: { paid: 0, estimated: 0 }
-  };
-
-  const occupancy = dashboardData.occupancy || {
-    stalls: { total: 0, rented: 0, percentage: 0, empty: 0 },
-    stores: { total: 0, rented: 0, percentage: 0, empty: 0 }
-  };
+  const expectedPayments = dashboardData.expectedPayments || DEFAULT_EXPECTED_PAYMENTS;
+  const occupancy = dashboardData.occupancy || DEFAULT_OCCUPANCY;
+  const stallsOccupancy = occupancy.stalls || DEFAULT_OCCUPANCY.stalls;
+  const storesOccupancy = occupancy.stores || DEFAULT_OCCUPANCY.stores;
 
   const topDebtors = Array.isArray(dashboardData.topDebtors) ? dashboardData.topDebtors : [];
 
-  const currentPaymentData = expectedPayments[paymentPeriod];
-  const remaining = currentPaymentData.estimated - currentPaymentData.paid;
+  const currentPaymentData = expectedPayments[paymentPeriod] || DEFAULT_EXPECTED_PAYMENTS[paymentPeriod];
+  const paidAmount = toNumber(currentPaymentData.paid);
+  const estimatedAmount = toNumber(currentPaymentData.estimated);
+  const remaining = Math.max(estimatedAmount - paidAmount, 0);
 
 
   const donutData = useMemo(() => [
     { 
       name: t("statistics.paid"), 
-      value: currentPaymentData.paid, 
+      value: paidAmount, 
       color: "#10b981" 
     },
     { 
       name: t("statistics.remaining"), 
-      value: remaining > 0 ? remaining : 0, 
+      value: remaining, 
       color: "#f43f5e" 
     }
-  ], [paymentPeriod, t, currentPaymentData.paid, remaining]);
+  ], [paidAmount, remaining, t]);
 
 
   const chartData = useMemo(() => {
@@ -176,14 +233,14 @@ const StatisticsPage = () => {
       storeTotal + stallTotal,
     );
 
-    const storeCount = firstCount(payload, ["storeCount", "storesCount"], stores.length);
-    const stallCount = firstCount(payload, ["stallCount", "stallsCount"], stalls.length);
+    const storeCount = firstNumber(payload, ["storeCount", "storesCount"], stores.length);
+    const stallCount = firstNumber(payload, ["stallCount", "stallsCount"], stalls.length);
 
     return [
         {
             title: t("statistics.total_revenue"),
             value: formatCurrency(total),
-            description: t("statistics.current_month"),
+            description: selectedMonthLabel,
             icon: TrendingUp,
             color: "bg-blue-600",
         },
@@ -202,10 +259,14 @@ const StatisticsPage = () => {
             color: "bg-orange-500",
         }
     ];
-  }, [byEntityQuery.data, t]);
+  }, [byEntityQuery.data, selectedMonthLabel, t]);
 
   function formatCurrency(value: number) {
-    return new Intl.NumberFormat("uz-UZ").format(value) + " so'm";
+    return currencyFormatter.format(value);
+  }
+
+  function formatCompactCurrency(value: number) {
+    return compactCurrencyFormatter.format(value);
   }
 
   if (monthlySeriesQuery.isLoading || byEntityQuery.isLoading || dashboardStatsQuery.isLoading) {
@@ -219,7 +280,7 @@ const StatisticsPage = () => {
 
   return (
     <main className="p-6 space-y-8 w-full mx-auto animate-in fade-in duration-500 min-w-0">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
             <div className="space-y-1">
                 <h1 className="text-3xl font-bold tracking-tight text-foreground">
                     {t("statistics.title")}
@@ -227,6 +288,51 @@ const StatisticsPage = () => {
                 <p className="text-sm text-muted-foreground font-medium">
                     {t("statistics.description")}
                 </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+                <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                        {t("statistics.month_label")}
+                    </span>
+                    <Select
+                        value={String(selectedMonth)}
+                        onValueChange={(value) => setSelectedMonth(Number(value))}
+                    >
+                        <SelectTrigger className="w-[180px] bg-white ring-0 focus:ring-0">
+                            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                            <SelectValue placeholder={t("statistics.month_label")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {monthOptions.map((month) => (
+                                <SelectItem key={month.value} value={String(month.value)}>
+                                    {month.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                        {t("statistics.year_label")}
+                    </span>
+                    <Select
+                        value={String(selectedYear)}
+                        onValueChange={(value) => setSelectedYear(Number(value))}
+                    >
+                        <SelectTrigger className="w-[140px] bg-white ring-0 focus:ring-0">
+                            <SelectValue placeholder={t("statistics.year_label")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {yearOptions.map((year) => (
+                                <SelectItem key={year} value={String(year)}>
+                                    {year}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
         </div>
 
@@ -236,23 +342,31 @@ const StatisticsPage = () => {
             ))}
         </div>
 
+        <DailyPaymentsSection
+            dailyPayments={dashboardData.dailyPayments}
+            month={selectedMonth}
+            year={selectedYear}
+            locale={locale}
+            monthLabel={selectedMonthLabel}
+        />
+
         {/* OCCUPANCY SECTION */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card className="border-none shadow-sm bg-white overflow-hidden">
                 <CardHeader className="pb-4">
                     <CardTitle className="text-lg font-bold">{t("statistics.stalls_occupancy")}</CardTitle>
-                    <CardDescription className="text-xs font-medium">{occupancy.stalls.rented} / {occupancy.stalls.total} {t("statistics.rented")}</CardDescription>
+                    <CardDescription className="text-xs font-medium">{stallsOccupancy.rented} / {stallsOccupancy.total} {t("statistics.rented")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
                         <div 
                             className="h-full bg-orange-500 rounded-full transition-all duration-1000" 
-                            style={{ width: `${occupancy.stalls.percentage}%` }} 
+                            style={{ width: `${stallsOccupancy.percentage}%` }} 
                         />
                     </div>
                     <div className="flex justify-between text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                        <span>{occupancy.stalls.percentage}% {t("statistics.filled")}</span>
-                        <span>{occupancy.stalls.empty} {t("statistics.empty")}</span>
+                        <span>{stallsOccupancy.percentage}% {t("statistics.filled")}</span>
+                        <span>{stallsOccupancy.empty} {t("statistics.empty")}</span>
                     </div>
                 </CardContent>
             </Card>
@@ -260,18 +374,18 @@ const StatisticsPage = () => {
             <Card className="border-none shadow-sm bg-white overflow-hidden">
                 <CardHeader className="pb-4">
                     <CardTitle className="text-lg font-bold">{t("statistics.stores_occupancy")}</CardTitle>
-                    <CardDescription className="text-xs font-medium">{occupancy.stores.rented} / {occupancy.stores.total} {t("statistics.rented")}</CardDescription>
+                    <CardDescription className="text-xs font-medium">{storesOccupancy.rented} / {storesOccupancy.total} {t("statistics.rented")}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
                         <div 
                             className="h-full bg-emerald-500 rounded-full transition-all duration-1000" 
-                            style={{ width: `${occupancy.stores.percentage}%` }} 
+                            style={{ width: `${storesOccupancy.percentage}%` }} 
                         />
                     </div>
                     <div className="flex justify-between text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                        <span>{occupancy.stores.percentage}% {t("statistics.filled")}</span>
-                        <span>{occupancy.stores.empty} {t("statistics.empty")}</span>
+                        <span>{storesOccupancy.percentage}% {t("statistics.filled")}</span>
+                        <span>{storesOccupancy.empty} {t("statistics.empty")}</span>
                     </div>
                 </CardContent>
             </Card>
@@ -330,7 +444,7 @@ const StatisticsPage = () => {
                                 axisLine={false}
                                 tickLine={false}
                                 tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }}
-                                tickFormatter={(value) => `${(value/1000000).toFixed(1)}M`}
+                                tickFormatter={(value) => formatCompactCurrency(toNumber(value))}
                             />
                             <Tooltip 
                                 cursor={{ stroke: '#f0f0f0', strokeWidth: 1, strokeDasharray: '4 4' }}
@@ -422,7 +536,7 @@ const StatisticsPage = () => {
                             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                                 <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{t("statistics.total")}</span>
                                 <span className="text-sm font-bold mt-1 text-foreground">
-                                    {formatCurrency(currentPaymentData.estimated)}
+                                    {formatCurrency(estimatedAmount)}
                                 </span>
                             </div>
 
@@ -437,7 +551,7 @@ const StatisticsPage = () => {
                                         <span className="text-[10px] font-bold text-muted-foreground uppercase">{entry.name}</span>
                                     </div>
                                     <span className="text-sm font-bold text-foreground">
-                                        {formatCurrency(entry.value)}
+                                        {formatCurrency(toNumber(entry.value))}
                                     </span>
                                 </div>
                             ))}
