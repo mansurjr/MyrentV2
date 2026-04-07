@@ -78,6 +78,28 @@ const resolveLocale = (language?: string) => {
   }
 };
 
+const formatSeriesLabel = (label: string, locale: string) => {
+  const normalized = String(label).trim();
+  const monthMatch = normalized.match(/^M(\d{1,2})$/i) || normalized.match(/^(\d{1,2})$/);
+  if (monthMatch) {
+    const monthNumber = Number(monthMatch[1]);
+    if (monthNumber >= 1 && monthNumber <= 12) {
+      return new Intl.DateTimeFormat(locale, { month: "short" }).format(new Date(2026, monthNumber - 1, 1));
+    }
+  }
+
+  const isoMonthMatch = normalized.match(/^(\d{4})-(\d{2})(?:-\d{2})?$/);
+  if (isoMonthMatch) {
+    const year = Number(isoMonthMatch[1]);
+    const monthNumber = Number(isoMonthMatch[2]);
+    if (monthNumber >= 1 && monthNumber <= 12) {
+      return new Intl.DateTimeFormat(locale, { month: "short" }).format(new Date(year, monthNumber - 1, 1));
+    }
+  }
+
+  return normalized;
+};
+
 interface StatCardProps {
   title: string;
   value: string;
@@ -207,13 +229,15 @@ const StatisticsPage = () => {
     
     const { labels, series } = monthlySeriesQuery.data;
     return labels.map((label: string, index: number) => {
-      const dataPoint: Record<string, string | number> = { name: label };
+      const dataPoint: Record<string, string | number> = {
+        name: formatSeriesLabel(label, locale),
+      };
       (series as { key: string; data: number[] }[]).forEach((s) => {
         dataPoint[s.key] = s.data[index] || 0;
       });
       return dataPoint;
     });
-  }, [monthlySeriesQuery.data]);
+  }, [locale, monthlySeriesQuery.data]);
 
   const stats = useMemo(() => {
     if (!byEntityQuery.data) return [];

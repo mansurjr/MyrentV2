@@ -17,14 +17,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import type { IDailyPaymentsDay, IDailyPaymentsMetric, IDailyPaymentsSummary } from "../hooks/useStatistics";
 
 interface DailyPaymentsSectionProps {
@@ -134,6 +126,38 @@ const normalizeDailyPayments = (
   };
 };
 
+const getCalendarWeekdayIndex = (date: Date) => (date.getDay() + 6) % 7;
+
+const buildCalendarWeeks = (days: ReturnType<typeof normalizeDailyPayments>["days"]) => {
+  if (!days.length) return [];
+
+  const weeks: Array<Array<(typeof days)[number] | null>> = [];
+  let currentWeek: Array<(typeof days)[number] | null> = [];
+  const firstDate = parseIsoDate(days[0].date);
+  const leadingEmptyDays = firstDate ? getCalendarWeekdayIndex(firstDate) : 0;
+
+  for (let index = 0; index < leadingEmptyDays; index += 1) {
+    currentWeek.push(null);
+  }
+
+  for (const day of days) {
+    currentWeek.push(day);
+    if (currentWeek.length === 7) {
+      weeks.push(currentWeek);
+      currentWeek = [];
+    }
+  }
+
+  if (currentWeek.length > 0) {
+    while (currentWeek.length < 7) {
+      currentWeek.push(null);
+    }
+    weeks.push(currentWeek);
+  }
+
+  return weeks;
+};
+
 export function DailyPaymentsSection({
   dailyPayments,
   month,
@@ -152,7 +176,6 @@ export function DailyPaymentsSection({
       }),
     [locale],
   );
-
   const compactCurrencyFormatter = useMemo(
     () =>
       new Intl.NumberFormat(locale, {
@@ -163,9 +186,7 @@ export function DailyPaymentsSection({
       }),
     [locale],
   );
-
   const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
-
   const shortDateFormatter = useMemo(
     () =>
       new Intl.DateTimeFormat(locale, {
@@ -174,11 +195,28 @@ export function DailyPaymentsSection({
       }),
     [locale],
   );
+  const weekdayFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        weekday: "short",
+      }),
+    [locale],
+  );
 
   const normalizedDailyPayments = useMemo(
     () => normalizeDailyPayments(dailyPayments, month, year),
     [dailyPayments, month, year],
   );
+  const calendarWeeks = useMemo(
+    () => buildCalendarWeeks(normalizedDailyPayments.days),
+    [normalizedDailyPayments.days],
+  );
+  const weekdayLabels = useMemo(() => {
+    const monday = new Date(2026, 0, 5);
+    return Array.from({ length: 7 }, (_, index) =>
+      weekdayFormatter.format(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + index)),
+    );
+  }, [weekdayFormatter]);
 
   const chartData = useMemo(
     () =>
@@ -206,7 +244,7 @@ export function DailyPaymentsSection({
           <div>
             <CardTitle className="text-lg font-bold">{t("statistics.daily_payments")}</CardTitle>
             <CardDescription className="text-xs font-medium">
-              {t("statistics.daily_payments_desc")} • {monthLabel}
+              {t("statistics.daily_payments_desc")} - {monthLabel}
             </CardDescription>
           </div>
           <div className="text-xs font-semibold text-muted-foreground">
@@ -214,6 +252,7 @@ export function DailyPaymentsSection({
           </div>
         </div>
       </CardHeader>
+
       <CardContent className="space-y-6 pt-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <div className="rounded-2xl border border-border/60 bg-slate-50/80 p-4">
@@ -319,66 +358,80 @@ export function DailyPaymentsSection({
           </ResponsiveContainer>
         </div>
 
-        <div className="overflow-x-auto rounded-2xl border border-border/60">
-          <Table>
-            <TableHeader className="bg-slate-50">
-              <TableRow className="hover:bg-slate-50">
-                <TableHead className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  {t("statistics.date")}
-                </TableHead>
-                <TableHead className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground text-right">
-                  {t("statistics.count")}
-                </TableHead>
-                <TableHead className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground text-right">
-                  {t("statistics.total_revenue")}
-                </TableHead>
-                <TableHead className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground text-right">
-                  {t("nav.stores")}
-                </TableHead>
-                <TableHead className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground text-right">
-                  {t("nav.stalls")}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {normalizedDailyPayments.days.map((day) => (
-                <TableRow key={day.date}>
-                  <TableCell className="px-4 py-3">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-foreground">{formatDate(day.date)}</span>
-                      <span className="text-xs text-muted-foreground">{day.date}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-right font-semibold">
-                    {numberFormatter.format(day.count)}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-right font-semibold">
-                    {formatCurrency(day.revenue)}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-right">
-                    <div className="flex flex-col items-end">
-                      <span className="font-semibold text-foreground">
-                        {formatCurrency(day.store.revenue)}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {numberFormatter.format(day.store.count)} {t("statistics.count")}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-right">
-                    <div className="flex flex-col items-end">
-                      <span className="font-semibold text-foreground">
-                        {formatCurrency(day.stall.revenue)}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {numberFormatter.format(day.stall.count)} {t("statistics.count")}
-                      </span>
-                    </div>
-                  </TableCell>
-                </TableRow>
+        <div className="overflow-x-auto">
+          <div className="min-w-[980px] rounded-[28px] border border-border/60 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-4 sm:p-5">
+            <div className="grid grid-cols-7 gap-3">
+              {weekdayLabels.map((label) => (
+                <div
+                  key={label}
+                  className="rounded-2xl bg-slate-100/80 px-3 py-2 text-center text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500"
+                >
+                  {label}
+                </div>
               ))}
-            </TableBody>
-          </Table>
+
+              {calendarWeeks.flat().map((day, index) =>
+                day ? (
+                  <div
+                    key={day.date}
+                    className="min-h-[170px] rounded-[26px] border border-slate-200/80 bg-white p-4 shadow-[0_14px_40px_-24px_rgba(15,23,42,0.28)] transition-transform duration-200 hover:-translate-y-0.5"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-2xl font-bold tracking-tight text-slate-900">{day.day}</div>
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                          {formatDate(day.date)}
+                        </div>
+                      </div>
+                      <div className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">
+                        {numberFormatter.format(day.count)} {t("statistics.count")}
+                      </div>
+                    </div>
+
+                    <div className="mt-5 space-y-3">
+                      <div className="rounded-2xl bg-slate-950 px-3 py-3 text-white">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/60">
+                          {t("statistics.total_revenue")}
+                        </div>
+                        <div className="mt-1 text-sm font-bold leading-tight">{formatCurrency(day.revenue)}</div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-2xl bg-emerald-50 px-3 py-3">
+                          <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-600">
+                            {t("nav.stores")}
+                          </div>
+                          <div className="mt-1 text-xs font-bold text-emerald-900">
+                            {formatCurrency(day.store.revenue)}
+                          </div>
+                          <div className="mt-1 text-[11px] font-medium text-emerald-700/80">
+                            {numberFormatter.format(day.store.count)} {t("statistics.count")}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl bg-orange-50 px-3 py-3">
+                          <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-orange-600">
+                            {t("nav.stalls")}
+                          </div>
+                          <div className="mt-1 text-xs font-bold text-orange-900">
+                            {formatCurrency(day.stall.revenue)}
+                          </div>
+                          <div className="mt-1 text-[11px] font-medium text-orange-700/80">
+                            {numberFormatter.format(day.stall.count)} {t("statistics.count")}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    key={`empty-${index}`}
+                    className="min-h-[170px] rounded-[26px] border border-dashed border-slate-200 bg-slate-50/60"
+                  />
+                ),
+              )}
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>
