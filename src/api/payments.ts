@@ -1,9 +1,9 @@
 import baseApi from "./index";
-import type { PaymentUrlResponse } from "@/types/payment";
+import type { PaymentUrlResponse, PublicPaymentMethod } from "@/types/payment";
 
 export const createAdminContractPaymentUrl = async (
   contractId: number,
-  payload: { periodIds: string[] },
+  payload: { periodIds: string[]; method?: PublicPaymentMethod },
 ) => {
   const response = await baseApi.post<PaymentUrlResponse>(
     `/contracts/${contractId}/payment-url`,

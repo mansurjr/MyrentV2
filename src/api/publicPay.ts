@@ -7,7 +7,6 @@ import type {
   PublicStallDetail,
   PublicStallPaymentUrlRequest,
 } from "@/types/payment";
-import { CLICK_PAYMENT_METHOD } from "@/lib/payment";
 
 export const searchPublicContracts = async (params: {
   storeNumber?: string;
@@ -61,10 +60,7 @@ export const createPublicStallPaymentUrl = async (
 ) => {
   const response = await baseApi.post<PaymentUrlResponse>(
     `/public/stalls/${stallNumber}/payment-url`,
-    {
-      ...payload,
-      method: CLICK_PAYMENT_METHOD,
-    },
+    payload,
   );
   return response.data;
 };

@@ -76,8 +76,9 @@ import type { Attendance } from "@/types/api-responses";
 import { getAdminAttendancePaymentUrl } from "@/api/payments";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/api-error";
 import { usePaymentMethodState } from "@/hooks/usePaymentMethodState";
-import { PaymentMethodDialog } from "@/components/payment/PaymentMethodDialog";
+import { ContractPaymentDialog } from "@/components/payment/ContractPaymentDialog";
 import {
+  getPendingContractPeriodPrefix,
   getPendingContractPeriodPrefixThroughId,
   getPendingContractPeriods,
 } from "@/lib/payment";
@@ -162,7 +163,7 @@ export function ReconciliationView() {
 
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [isContractPaymentDialogOpen, setIsContractPaymentDialogOpen] = useState(false);
-  const [pendingContractPeriodIds, setPendingContractPeriodIds] = useState<string[]>([]);
+  const [selectedContractPeriodCount, setSelectedContractPeriodCount] = useState(0);
   const [editedAmounts, setEditedAmounts] = useState<Record<string, string>>({});
   const [editingPeriodId, setEditingPeriodId] = useState<string | null>(null);
   const [tempAmount, setTempAmount] = useState<string>("");
@@ -238,6 +239,17 @@ export function ReconciliationView() {
     [contractsData, selectedContractId],
   );
   const contractPayment = usePaymentMethodState(selectedContract?.availableMethods ?? null);
+  const pendingPeriods = useMemo(
+    () => (selectedContract?.paymentPeriods ? getPendingContractPeriods(selectedContract.paymentPeriods) : []),
+    [selectedContract?.paymentPeriods],
+  );
+  const selectedPendingPeriods = useMemo(
+    () =>
+      selectedContract?.paymentPeriods
+        ? getPendingContractPeriodPrefix(selectedContract.paymentPeriods, selectedContractPeriodCount)
+        : [],
+    [selectedContract?.paymentPeriods, selectedContractPeriodCount],
+  );
 
   const paymentHistory = useMemo(() => {
     if (!selectedContract || !selectedContract.paymentPeriods) return [];
@@ -398,12 +410,12 @@ export function ReconciliationView() {
     }
   };
 
-  const handleContractRedirect = async (periodIds: string[]) => {
+  const handleContractRedirect = async () => {
     if (!selectedContract || isRedirecting) {
       return;
     }
 
-    if (periodIds.length === 0) {
+    if (selectedPendingPeriods.length === 0) {
       return;
     }
 
@@ -415,7 +427,11 @@ export function ReconciliationView() {
     contractPayment.setPaymentError(null);
     setIsRedirecting(true);
     try {
-      await automatePaymentRedirect(selectedContract.id, periodIds, contractPayment.selectedMethod);
+      await automatePaymentRedirect(
+        selectedContract.id,
+        selectedPendingPeriods.map((period) => period.id),
+        contractPayment.selectedMethod,
+      );
       setIsContractPaymentDialogOpen(false);
     } catch (error) {
       const status = getApiErrorStatus(error);
@@ -442,7 +458,7 @@ export function ReconciliationView() {
     }
   };
 
-  const openContractPaymentDialog = (periodIds: string[]) => {
+  const openContractPaymentDialog = (periodIds?: string[]) => {
     if (!selectedContract) {
       return;
     }
@@ -452,7 +468,9 @@ export function ReconciliationView() {
       return;
     }
 
-    setPendingContractPeriodIds(periodIds);
+    setSelectedContractPeriodCount(
+      periodIds && periodIds.length > 0 ? Math.min(periodIds.length, pendingPeriods.length) : pendingPeriods.length > 0 ? 1 : 0,
+    );
     contractPayment.setPaymentError(null);
     setIsContractPaymentDialogOpen(true);
   };
@@ -1037,22 +1055,11 @@ export function ReconciliationView() {
                             </Button>
                           )}
 
-                          {stats!.totalDebtAmount > 0 &&
-                          (selectedContract.paymentType === "BANK" ||
-                            selectedContract.paymentPeriods?.some((p) => p.status === "PENDING")) ? (
+                          {pendingPeriods.length > 0 ? (
                             <Button
                                 onClick={async () => {
                                 if (!selectedContract) return;
-
-                                const pendingPeriods = selectedContract.paymentPeriods
-                                  ? getPendingContractPeriods(selectedContract.paymentPeriods).map(
-                                      (period) => period.id,
-                                    )
-                                  : [];
-                                
-                                if (selectedContract.paymentType === "BANK" || pendingPeriods.length > 0) {
-                                  openContractPaymentDialog(pendingPeriods);
-                                }
+                                openContractPaymentDialog();
                               }}
                               disabled={isRedirecting}
                               className="w-full flex items-center justify-center gap-2 font-bold shadow-sm transition-all active:scale-[0.98] bg-red-600 hover:bg-red-700 text-white">
@@ -1061,7 +1068,11 @@ export function ReconciliationView() {
                               ) : (
                                 <PayIcon className="h-4 w-4" />
                               )}
-                              {selectedContract.paymentType === 'ONLINE' ? t("reconciliation.pay_debt") : t("contracts.manual_pay")}
+                              {selectedContract.paymentType === 'ONLINE'
+                                ? stats!.totalDebtAmount > 0
+                                  ? t("reconciliation.pay_debt")
+                                  : t("common.pay")
+                                : t("contracts.manual_pay")}
                               {!isRedirecting && <ArrowRight className="h-4 w-4 ml-auto" />}
                             </Button>
                           ) : null}
@@ -1455,14 +1466,17 @@ export function ReconciliationView() {
           onOpenChange={setIsManualPayOpen}
         />
       )}
-      <PaymentMethodDialog
+      <ContractPaymentDialog
         open={isContractPaymentDialogOpen}
         onOpenChange={setIsContractPaymentDialogOpen}
+        pendingPeriods={pendingPeriods}
+        selectedPeriodCount={selectedContractPeriodCount}
+        onSelectPeriodCount={setSelectedContractPeriodCount}
         availableMethods={contractPayment.availableMethods}
         selectedMethod={contractPayment.selectedMethod}
-        onSelect={contractPayment.setSelectedMethod}
+        onSelectMethod={contractPayment.setSelectedMethod}
         onConfirm={() => {
-          void handleContractRedirect(pendingContractPeriodIds);
+          void handleContractRedirect();
         }}
         loading={isRedirecting}
         error={contractPayment.paymentError}

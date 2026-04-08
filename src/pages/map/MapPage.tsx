@@ -42,8 +42,8 @@ import { useToast } from "@/hooks/use-toast";
 import { getAdminAttendancePaymentUrl } from "@/api/payments";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/api-error";
 import { usePaymentMethodState } from "@/hooks/usePaymentMethodState";
-import { PaymentMethodDialog } from "@/components/payment/PaymentMethodDialog";
-import { getPendingContractPeriods } from "@/lib/payment";
+import { ContractPaymentDialog } from "@/components/payment/ContractPaymentDialog";
+import { getPendingContractPeriodPrefix, getPendingContractPeriods } from "@/lib/payment";
 import { resolveStoreCurrentMonthPaid } from "@/lib/payment-status";
 
 export default function MapPage() {
@@ -56,6 +56,7 @@ export default function MapPage() {
   const [attendancePaymentLoading, setAttendancePaymentLoading] = useState(false);
   const [isContractPaymentDialogOpen, setIsContractPaymentDialogOpen] = useState(false);
   const [contractPaymentLoading, setContractPaymentLoading] = useState(false);
+  const [selectedPeriodCount, setSelectedPeriodCount] = useState(0);
   const debouncedStoreSearch = useDebounce(storeSearch, 500);
   const debouncedStallSearch = useDebounce(stallSearch, 500);
   
@@ -126,6 +127,17 @@ export default function MapPage() {
     if (selectedItem?.type !== "store") return undefined;
     return resolveStorePaidState(itemData);
   }, [selectedItem, itemData, contractDetail]);
+  const contractPendingPeriods = useMemo(
+    () => (contractDetail?.paymentPeriods ? getPendingContractPeriods(contractDetail.paymentPeriods) : []),
+    [contractDetail?.paymentPeriods],
+  );
+  const selectedPendingPeriods = useMemo(
+    () =>
+      contractDetail?.paymentPeriods
+        ? getPendingContractPeriodPrefix(contractDetail.paymentPeriods, selectedPeriodCount)
+        : [],
+    [contractDetail?.paymentPeriods, selectedPeriodCount],
+  );
 
   const todayAttendance = useMemo(() => {
     if (selectedItem?.type !== 'stall' || !itemData) return null;
@@ -187,9 +199,7 @@ export default function MapPage() {
     }
 
     const contract = itemData.contracts[0];
-    const pendingPeriods = getPendingContractPeriods(contractDetail.paymentPeriods);
-    const earliestPendingPeriod = pendingPeriods[0];
-    if (!earliestPendingPeriod) {
+    if (selectedPendingPeriods.length === 0) {
       return;
     }
 
@@ -203,7 +213,7 @@ export default function MapPage() {
     try {
       await automatePaymentRedirect(
         contract.id,
-        [earliestPendingPeriod.id],
+        selectedPendingPeriods.map((period) => period.id),
         contractPayment.selectedMethod,
       );
       setIsContractPaymentDialogOpen(false);
@@ -552,11 +562,12 @@ export default function MapPage() {
             </DialogFooter>
           ) : selectedItem?.type === 'store' && itemData?.contracts?.[0] ? (
             <DialogFooter className="mt-6 flex flex-col gap-2">
-              {selectedStorePaidState === false ? (
+              {contractPendingPeriods.length > 0 ? (
                 <div className="flex flex-col gap-2 w-full">
                   <Button 
                     onClick={() => {
                       contractPayment.setPaymentError(null);
+                      setSelectedPeriodCount(contractPendingPeriods.length > 0 ? 1 : 0);
                       setIsContractPaymentDialogOpen(true);
                     }}
                     className="bg-blue-600 hover:bg-blue-700 font-bold w-full"
@@ -584,12 +595,15 @@ export default function MapPage() {
           ) : null}
         </DialogContent>
       </Dialog>
-      <PaymentMethodDialog
+      <ContractPaymentDialog
         open={isContractPaymentDialogOpen}
         onOpenChange={setIsContractPaymentDialogOpen}
+        pendingPeriods={contractPendingPeriods}
+        selectedPeriodCount={selectedPeriodCount}
+        onSelectPeriodCount={setSelectedPeriodCount}
         availableMethods={contractPayment.availableMethods}
         selectedMethod={contractPayment.selectedMethod}
-        onSelect={contractPayment.setSelectedMethod}
+        onSelectMethod={contractPayment.setSelectedMethod}
         onConfirm={() => {
           void handleContractPay();
         }}

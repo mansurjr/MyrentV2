@@ -33,8 +33,8 @@ import { useTranslation } from "react-i18next";
 import { useToast } from "@/hooks/use-toast";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { usePaymentMethodState } from "@/hooks/usePaymentMethodState";
-import { PaymentMethodDialog } from "@/components/payment/PaymentMethodDialog";
-import { getPendingContractPeriods } from "@/lib/payment";
+import { ContractPaymentDialog } from "@/components/payment/ContractPaymentDialog";
+import { getPendingContractPeriodPrefix, getPendingContractPeriods } from "@/lib/payment";
 import { resolveContractCurrentMonthPaid } from "@/lib/payment-status";
 
 interface ActionCellProps {
@@ -64,6 +64,12 @@ const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
     paymentError,
     setPaymentError,
   } = usePaymentMethodState(contract.availableMethods ?? null);
+  const [selectedPeriodCount, setSelectedPeriodCount] = useState(0);
+  const pendingPeriods = getPendingContractPeriods(contract.paymentPeriods ?? []);
+  const selectedPendingPeriods = getPendingContractPeriodPrefix(
+    contract.paymentPeriods ?? [],
+    selectedPeriodCount,
+  );
 
   const handleSeeTransactions = () => {
     const search = contract.certificateNumber || "";
@@ -75,8 +81,7 @@ const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
       return;
     }
 
-    const pendingPeriods = getPendingContractPeriods(contract.paymentPeriods ?? []);
-    if (pendingPeriods.length === 0) return;
+    if (selectedPendingPeriods.length === 0) return;
 
     if (!selectedMethod) {
       setPaymentError("To'lov usulini tanlang");
@@ -88,7 +93,7 @@ const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
     try {
       await automatePaymentRedirect(
         contract.id,
-        pendingPeriods.map((period) => period.id),
+        selectedPendingPeriods.map((period) => period.id),
         selectedMethod,
       );
       setIsPaymentDialogOpen(false);
@@ -122,9 +127,7 @@ const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
     }
   };
 
-  
-  const hasPendingPeriods = contract.paymentPeriods?.some(p => p.status === 'PENDING');
-  const showPayButton = hasPendingPeriods && contract.paymentType === "ONLINE";
+  const showPayButton = pendingPeriods.length > 0 && contract.paymentType === "ONLINE";
 
   if (isArchived) return null;
 
@@ -156,6 +159,7 @@ const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
                   onClick={() => {
                     setMenuOpen(false);
                     setPaymentError(null);
+                    setSelectedPeriodCount(pendingPeriods.length > 0 ? 1 : 0);
                     setIsPaymentDialogOpen(true);
                   }}
                   disabled={paymentUrlLoading}
@@ -231,12 +235,15 @@ const ActionCell = ({ contract, onEdit, isArchived }: ActionCellProps) => {
         open={isManualPayOpen}
         onOpenChange={setIsManualPayOpen}
       />
-      <PaymentMethodDialog
+      <ContractPaymentDialog
         open={isPaymentDialogOpen}
         onOpenChange={setIsPaymentDialogOpen}
+        pendingPeriods={pendingPeriods}
+        selectedPeriodCount={selectedPeriodCount}
+        onSelectPeriodCount={setSelectedPeriodCount}
         availableMethods={availableMethods}
         selectedMethod={selectedMethod}
-        onSelect={setSelectedMethod}
+        onSelectMethod={setSelectedMethod}
         onConfirm={() => {
           void handlePay();
         }}

@@ -168,10 +168,11 @@ export const useContracts = () => {
   const getPaymentUrl = async (
     id: number,
     periodIds: string[],
-    _method?: PublicPaymentMethod,
+    method?: PublicPaymentMethod,
   ) => {
     return createAdminContractPaymentUrl(id, {
       periodIds: normalizePeriodIds(periodIds),
+      method,
     });
   };
 
