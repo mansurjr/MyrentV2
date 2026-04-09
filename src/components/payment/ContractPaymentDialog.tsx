@@ -51,7 +51,7 @@ export function ContractPaymentDialog({
   error,
   title = "To'lov usuli va davrlarini tanlang",
   description = "Faqat birinchi to'lanmagan oydan boshlab ketma-ket oylar tanlanadi.",
-  submitLabel = "To'lovga o'tish",
+  submitLabel = "To'lash",
 }: ContractPaymentDialogProps) {
   const normalizedPendingPeriods = useMemo(
     () => getPendingContractPeriods(pendingPeriods),
@@ -78,17 +78,18 @@ export function ContractPaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+        <DialogHeader className="shrink-0 px-6 pb-4 pt-6">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="flex flex-1 flex-col overflow-hidden px-6 pb-4">
+          <div className="space-y-4 overflow-y-auto py-2 pr-1">
           {hasPendingPeriods ? (
             <>
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-sm font-semibold">To'lov davrlari</div>
                   <button
                     type="button"
@@ -101,7 +102,7 @@ export function ContractPaymentDialog({
                     {allSelected ? "Barchasini bekor qilish" : "Barchasini tanlash"}
                   </button>
                 </div>
-                <div className="grid gap-2">
+                <div className="grid max-h-96 gap-2 overflow-y-auto pr-1 md:max-h-[50vh] md:grid-cols-2">
                   {normalizedPendingPeriods.map((period) => {
                     const isSelected = selectedPeriods.some(
                       (selectedPeriod) => selectedPeriod.id === period.id,
@@ -114,7 +115,7 @@ export function ContractPaymentDialog({
                         disabled={loading}
                         onClick={() => togglePeriod(period.id)}
                         className={cn(
-                          "flex items-center gap-3 rounded-lg border p-4 text-left transition-all disabled:cursor-not-allowed disabled:opacity-60",
+                          "flex items-center gap-3 rounded-lg border p-3 text-left transition-all disabled:cursor-not-allowed disabled:opacity-60",
                           isSelected
                             ? "border-primary/30 bg-primary/5"
                             : "border-border/60 bg-background hover:border-primary/30 hover:bg-muted/30",
@@ -132,7 +133,7 @@ export function ContractPaymentDialog({
                             <Square className="h-5 w-5" />
                           )}
                         </div>
-                        <div className="flex-1 flex items-center justify-between gap-4">
+                        <div className="flex flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                           <span className="text-sm font-semibold">
                             {period.year}-yil, {getMonthName(period.month)}
                           </span>
@@ -173,9 +174,10 @@ export function ContractPaymentDialog({
               {error}
             </div>
           ) : null}
+          </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0 border-t px-6 py-4">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Bekor qilish
           </Button>

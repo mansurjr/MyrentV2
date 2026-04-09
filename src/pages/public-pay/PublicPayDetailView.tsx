@@ -251,8 +251,8 @@ export default function PublicPayDetailView() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 px-4 py-8 sm:py-20 flex items-center justify-center">
-      <div className="max-w-xl w-full">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 px-4 py-8 sm:py-12 lg:py-16 flex items-start justify-center">
+      <div className="max-w-2xl w-full">
         <Button
           variant="ghost"
           onClick={() => navigate(-1)}
@@ -282,9 +282,9 @@ export default function PublicPayDetailView() {
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="p-8 space-y-8">
-            <div className="space-y-6">
-              <div className="flex justify-between items-center">
+          <CardContent className="p-6 sm:p-8 space-y-6">
+            <div className="space-y-5">
+              <div className="flex justify-between items-center gap-4">
                 <span className="text-muted-foreground font-bold uppercase tracking-widest text-[10px]">
                   Holati
                 </span>
@@ -304,7 +304,7 @@ export default function PublicPayDetailView() {
 
               {contractData && pendingPeriods.length > 0 && (
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-3">
                     <span className="text-muted-foreground font-bold uppercase tracking-widest text-[10px]">
                       Qarzdorlik tafsilotlari
                     </span>
@@ -326,7 +326,7 @@ export default function PublicPayDetailView() {
                     Eng yaqin to'lanmagan oy birinchi tanlanadi. Keyingi oylarni tanlasangiz,
                     oldingi qarzdor oylar ham avtomatik qo'shiladi.
                   </p>
-                  <div className="grid gap-2">
+                  <div className="grid max-h-96 gap-2 overflow-y-auto pr-1 sm:max-h-[45vh]">
                     {pendingPeriods.map((period) => {
                       const isSelected = selectedPendingPeriods.some(
                         (selectedPeriod) => selectedPeriod.id === period.id,
@@ -336,7 +336,7 @@ export default function PublicPayDetailView() {
                           key={period.id}
                           onClick={() => togglePeriod(period.id)}
                           className={cn(
-                            "flex items-center gap-3 p-4 rounded-lg text-sm font-bold border transition-all cursor-pointer",
+                            "flex items-center gap-3 rounded-lg border p-3 text-sm font-bold transition-all cursor-pointer",
                             isSelected
                               ? "bg-blue-50/50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
                               : "bg-slate-50 dark:bg-slate-800 border-muted/30 hover:border-blue-200 dark:hover:border-blue-800",
@@ -352,7 +352,7 @@ export default function PublicPayDetailView() {
                               <Square className="h-5 w-5" />
                             )}
                           </div>
-                          <div className="flex-1 flex justify-between">
+                          <div className="flex flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                             <span
                               className={
                                 isSelected
@@ -415,14 +415,12 @@ export default function PublicPayDetailView() {
                   }}
                   disabled={paymentUrlLoading || availableMethods.length === 0}
                   className={cn(
-                    "h-16 rounded-xl flex items-center justify-between px-6 transition-all hover:scale-[1.01] active:scale-[0.99] font-black tracking-widest italic text-lg shadow-lg",
+                    "h-14 rounded-xl flex items-center justify-between px-5 transition-all hover:scale-[1.01] active:scale-[0.99] font-black tracking-widest text-base sm:text-lg shadow-lg",
                     selectedMethod === "payme"
                       ? "bg-[#16c7cc] hover:bg-[#12a5aa] text-white shadow-teal-500/10"
                       : "bg-[#0091ff] hover:bg-[#0070c5] text-white shadow-blue-500/10",
                   )}>
-                  <span className="uppercase">
-                    {selectedMethod ? "To'lovga o'tish" : "To'lov usulini tanlang"}
-                  </span>
+                  <span className="uppercase">To'lash</span>
                   {paymentUrlLoading ? (
                     <Loader2 className="h-6 w-6 animate-spin" />
                   ) : (

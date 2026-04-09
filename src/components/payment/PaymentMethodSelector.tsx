@@ -35,16 +35,15 @@ export function PaymentMethodSelector({
             disabled={disabled}
             onClick={() => onSelect(method)}
             className={cn(
-              "rounded-xl border px-4 py-4 text-left transition-all",
+              "flex min-h-12 items-center justify-center rounded-xl border px-4 py-3 text-center transition-all",
               "disabled:cursor-not-allowed disabled:opacity-60",
               isSelected
                 ? "border-primary bg-primary/5 shadow-sm"
                 : "border-border/50 bg-background hover:border-primary/40 hover:bg-muted/30",
-            )}>
-            <div className="text-sm font-bold">{getPaymentMethodLabel(method)}</div>
-            <div className="text-xs text-muted-foreground">
-              {method === "click" ? "Click orqali to'lash" : "Payme orqali to'lash"}
-            </div>
+            )}
+            aria-pressed={isSelected}
+          >
+            <span className="text-sm font-bold">{getPaymentMethodLabel(method)}</span>
           </button>
         );
       })}

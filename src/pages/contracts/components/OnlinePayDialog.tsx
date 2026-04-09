@@ -63,14 +63,14 @@ export function OnlinePayDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[425px]">
+        <DialogHeader className="shrink-0 px-6 pb-4 pt-6">
           <DialogTitle>{t("reconciliation.confirm_payment")}</DialogTitle>
           <DialogDescription>
             {t("reconciliation.payment_intent_desc")}
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
+        <div className="grid flex-1 gap-4 overflow-y-auto px-6 py-4">
           <div className="grid gap-2">
             <Label htmlFor="months">{t("contracts.months_count")}</Label>
             <Input
@@ -90,35 +90,29 @@ export function OnlinePayDialog({
               onChange={(e) => setStartMonth(e.target.value)}
             />
           </div>
-          <div className="grid grid-cols-1 gap-3 pt-4">
+          <div className="grid grid-cols-1 gap-3 pt-2">
             <Button 
                 className={cn(
-                  "w-full h-14 flex flex-col items-center justify-center gap-1 border-2 transition-all group font-bold text-white bg-[#00a3ff] hover:bg-[#00a3ff]/90 border-[#00a3ff]"
+                  "w-full h-12 border-2 transition-all group font-bold text-white bg-[#00a3ff] hover:bg-[#00a3ff]/90 border-[#00a3ff]"
                 )}
                 onClick={() => handleRedirect('CLICK')}
                 disabled={loading}
             >
-              <span className="text-lg group-hover:scale-105 transition-transform text-white">
+              <span className="text-base group-hover:scale-105 transition-transform text-white">
                 CLICK
-              </span>
-              <span className="text-[10px] uppercase opacity-80 text-white">
-                {t("reconciliation.pay_via_click")}
               </span>
             </Button>
 
             {resolvedMethods.includes("payme") && (
               <Button 
                   className={cn(
-                    "w-full h-14 flex flex-col items-center justify-center gap-1 border-2 transition-all group font-bold text-white bg-[#00BAFF] hover:bg-[#00BAFF]/90 border-[#00BAFF]"
+                    "w-full h-12 border-2 transition-all group font-bold text-white bg-[#00BAFF] hover:bg-[#00BAFF]/90 border-[#00BAFF]"
                   )}
                   onClick={() => handleRedirect('PAYME')}
                   disabled={loading}
               >
-                <span className="text-lg group-hover:scale-105 transition-transform text-white">
+                <span className="text-base group-hover:scale-105 transition-transform text-white">
                   Payme
-                </span>
-                <span className="text-[10px] uppercase opacity-80 text-white">
-                  {t("reconciliation.pay_via_payme")}
                 </span>
               </Button>
             )}

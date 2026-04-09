@@ -978,7 +978,7 @@ export function ReconciliationView() {
                 </CardContent>
               </Card>
               {selectedContractId && selectedContract && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 max-w-full pt-0">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:gap-6 flex-1 max-w-full pt-0">
                   <div className="space-y-6 shrink-0 md:w-full">
                     <Card className="h-fit shadow-sm border-border/50 overflow-hidden pt-0">
                       <div className="bg-primary/5 p-4 border-b border-border/50 flex items-center justify-between">
@@ -1068,11 +1068,7 @@ export function ReconciliationView() {
                               ) : (
                                 <PayIcon className="h-4 w-4" />
                               )}
-                              {selectedContract.paymentType === 'ONLINE'
-                                ? stats!.totalDebtAmount > 0
-                                  ? t("reconciliation.pay_debt")
-                                  : t("common.pay")
-                                : t("contracts.manual_pay")}
+                              {t("common.pay")}
                               {!isRedirecting && <ArrowRight className="h-4 w-4 ml-auto" />}
                             </Button>
                           ) : null}
@@ -1110,9 +1106,10 @@ export function ReconciliationView() {
                     </Card>
                   </div>
 
-                  <Card className="md:col-span-2 flex flex-col shadow-sm border-border/50 min-h-0 py-0overflow-hidden">
-                    <CardHeader className="bg-muted/30 py-0 shrink-0 flex flex-row items-center justify-between">
-                      <div className="flex items-center gap-4">
+                  <Card className="md:col-span-2 flex flex-col overflow-hidden border-border/50 py-0 shadow-sm lg:max-h-[calc(100vh-11rem)]">
+                    <CardHeader className="shrink-0 bg-muted/30 px-4 py-3">
+                      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                        <div className="flex flex-wrap items-center gap-3 md:gap-4">
                         <div>
                           <CardTitle className="text-lg">
                             {t("reconciliation.payment_schedule")}
@@ -1129,7 +1126,7 @@ export function ReconciliationView() {
                           <Select
                             value={selectedYear}
                             onValueChange={setSelectedYear}>
-                            <SelectTrigger className="h-8 w-22.5 text-xs font-bold">
+                            <SelectTrigger className="h-8 w-24 text-xs font-bold">
                               <SelectValue placeholder={t("reconciliation.year")} />
                             </SelectTrigger>
                             <SelectContent>
@@ -1152,7 +1149,7 @@ export function ReconciliationView() {
                             onValueChange={(val) =>
                               setStatusFilter(val as "all" | "paid" | "debt")
                             }>
-                            <SelectTrigger className="h-8 w-27.5 text-xs font-bold">
+                            <SelectTrigger className="h-8 w-28 text-xs font-bold">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -1162,9 +1159,9 @@ export function ReconciliationView() {
                             </SelectContent>
                           </Select>
                         </div>
-                      </div>
+                        </div>
 
-                      <div className="hidden sm:flex items-center gap-3">
+                        <div className="hidden flex-wrap items-center gap-3 sm:flex xl:justify-end">
                         <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-muted-foreground">
                           <div className="w-2 h-2 rounded-full bg-emerald-500" />
                           {t("common.paid")}
@@ -1173,6 +1170,7 @@ export function ReconciliationView() {
                           <div className="w-2 h-2 rounded-full bg-red-500" />
                           {t("common.unpaid")}
                         </div>
+                      </div>
                       </div>
                     </CardHeader>
                     <Separator />
@@ -1183,14 +1181,14 @@ export function ReconciliationView() {
                             <div
                               key={idx}
                               className={cn(
-                                "bg-background p-4 flex items-center justify-between transition-colors",
+                                "bg-background p-3 md:p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between transition-colors",
                                 month.isCurrent &&
                                   "bg-primary/5 ring-1 ring-primary/20 inset-0 z-10",
                               )}>
-                              <div className="flex items-center gap-3">
+                              <div className="flex min-w-0 items-start gap-3">
                                 <div
                                   className={cn(
-                                    "p-2 rounded-lg",
+                                    "shrink-0 p-2 rounded-lg",
                                     month.isPaid
                                       ? "bg-emerald-50 text-emerald-600"
                                       : month.isPast
@@ -1205,10 +1203,10 @@ export function ReconciliationView() {
                                     <CalendarIcon className="h-5 w-5" />
                                   )}
                                 </div>
-                                <div>
+                                <div className="min-w-0">
                                   <p
                                     className={cn(
-                                      "text-sm font-bold capitalize",
+                                      "text-sm font-bold capitalize break-words",
                                       month.isCurrent && "text-primary",
                                     )}>
                                     {month.label}
@@ -1251,15 +1249,15 @@ export function ReconciliationView() {
                                           ) : (
                                             <PayIcon className="h-3 w-3" />
                                           )}
-                                          {selectedContract.paymentType === 'ONLINE' ? t("common.pay") : t("contracts.manual_pay")}
+                                          {t("common.pay")}
                                         </button>
                                     )}
                                   </div>
                                 </div>
                               </div>
-                              <div className="flex flex-col items-end gap-2">
-                                <div className="flex items-center gap-2">
-                                  <div className="text-right">
+                              <div className="flex w-full flex-row items-start justify-between gap-3 sm:w-auto sm:flex-col sm:items-end">
+                                <div className="flex items-center gap-2 sm:justify-end">
+                                  <div className="text-left sm:text-right">
                                     <span className="text-sm font-bold block">
                                       {new Intl.NumberFormat("uz-UZ").format(
                                         Number(editedAmounts[month.id!] ?? month.amount)
@@ -1480,6 +1478,7 @@ export function ReconciliationView() {
         }}
         loading={isRedirecting}
         error={contractPayment.paymentError}
+        submitLabel={t("common.pay")}
       />
     </div>
   );
