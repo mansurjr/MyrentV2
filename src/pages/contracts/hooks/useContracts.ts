@@ -16,9 +16,12 @@ export interface ICreateContractDto {
   storeId: string;
 }
 
-export interface IUpdateContractDto extends Partial<ICreateContractDto> {
-  isActive?: boolean;
-}
+export type UpdateContractPayload = {
+  certificateNumber?: string;
+  shopMonthlyFee?: number;
+  paymentType?: 'ONLINE' | 'BANK';
+  expiryDate?: string | null;
+};
 
 export interface IContractOptions {
   search?: string;
@@ -104,11 +107,12 @@ export const useContracts = () => {
   });
 
   const updateContract = useMutation({
-    mutationFn: async ({ id, dto }: { id: number; dto: IUpdateContractDto }) => {
+    mutationFn: async ({ id, dto }: { id: number; dto: UpdateContractPayload }) => {
       const response = await baseApi.patch<Contract>(`/contracts/${id}`, dto);
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (updatedContract) => {
+      queryClient.setQueryData(["contracts", updatedContract.id], updatedContract);
       queryClient.invalidateQueries({ queryKey: ["contracts"] });
       queryClient.invalidateQueries({ queryKey: ["stores"] });
       queryClient.invalidateQueries({ queryKey: ["statistics", "reconciliation-contracts"] });

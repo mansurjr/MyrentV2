@@ -20,7 +20,11 @@ import {
   User as UserIcon,
   PlusCircle,
 } from "lucide-react";
-import { useContracts, type ICreateContractDto } from "../hooks/useContracts";
+import {
+  useContracts,
+  type ICreateContractDto,
+  type UpdateContractPayload,
+} from "../hooks/useContracts";
 import { useOwners } from "../../owners/hooks/useOwners";
 import { useStores } from "../../stores/hooks/useStores";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -98,13 +102,38 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
     e.preventDefault();
     try {
       if (contract) {
-        await updateContract.mutateAsync({
+        const requestUrl = `/api/contracts/${contract.id}`;
+        const initialExpiryDate = contract.expiryDate
+          ? new Date(contract.expiryDate).toISOString().split("T")[0]
+          : "";
+        const expiryDateChanged = formData.expiryDate !== initialExpiryDate;
+        const updatePayload: UpdateContractPayload = {
+          certificateNumber: formData.certificateNumber?.trim() || undefined,
+          shopMonthlyFee:
+            formData.shopMonthlyFee !== ""
+              ? Number(formData.shopMonthlyFee)
+              : undefined,
+          paymentType: formData.paymentType || undefined,
+          ...(expiryDateChanged
+            ? { expiryDate: formData.expiryDate || null }
+            : {}),
+        };
+
+        console.log("[ContractForm] submitting contract update", {
+          selectedContract: contract,
+          requestUrl,
+          requestPayload: updatePayload,
+        });
+
+        const updatedContract = await updateContract.mutateAsync({
           id: contract.id,
-          dto: {
-            shopMonthlyFee: Number(formData.shopMonthlyFee),
-            paymentType: formData.paymentType,
-            certificateNumber: formData.certificateNumber,
-          } as any,
+          dto: updatePayload,
+        });
+
+        console.log("[ContractForm] contract update response", {
+          requestUrl,
+          requestPayload: updatePayload,
+          response: updatedContract,
         });
         toast({
           title: t("common.success"),
@@ -362,7 +391,6 @@ export function ContractForm({ contract, onSuccess }: ContractFormProps) {
                     expiryDate: d ? format(d, "yyyy-MM-dd") : "",
                   })
                 }
-                disabled={!!contract}
               />
             </div>
           </div>
