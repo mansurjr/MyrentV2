@@ -244,6 +244,7 @@
     "last_year": "Last year",
     "daily_payments": "Daily Payments",
     "daily_payments_desc": "Day-by-day revenue and payment counts",
+    "contract_payment_types": "Contract Payment Types",
     "expected_payments": "Expected Payments",
     "expected_vs_paid": "Expected vs Paid",
     "paid": "Paid",

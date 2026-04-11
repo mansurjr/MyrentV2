@@ -242,6 +242,7 @@
     "last_year": "O'tgan yil",
     "daily_payments": "Kunlik to'lovlar",
     "daily_payments_desc": "Kunlar bo'yicha tushum va to'lovlar soni",
+    "contract_payment_types": "Shartnoma to'lov turlari",
     "expected_payments": "Kutilayotgan tushumlar",
     "expected_vs_paid": "To'langan va qoldiq solishtirmasi",
     "paid": "To'langan",

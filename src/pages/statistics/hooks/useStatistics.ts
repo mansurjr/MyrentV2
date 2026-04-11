@@ -34,18 +34,34 @@ export interface IDailyPaymentsMetric {
   revenue?: number;
 }
 
+export interface IDailyPaymentsMethodBreakdown {
+  CASH?: IDailyPaymentsMetric;
+  PAYME?: IDailyPaymentsMetric;
+}
+
+export interface IDailyPaymentsStorePaymentTypes {
+  BANK?: IDailyPaymentsMetric;
+  ONLINE?: IDailyPaymentsMetric;
+}
+
+export interface IDailyPaymentsStoreMetric extends IDailyPaymentsMetric {
+  paymentTypes?: IDailyPaymentsStorePaymentTypes;
+}
+
 export interface IDailyPaymentsDay {
   date?: string;
   day?: number;
   count?: number;
   revenue?: number;
   stall?: IDailyPaymentsMetric;
-  store?: IDailyPaymentsMetric;
+  store?: IDailyPaymentsStoreMetric;
+  methods?: IDailyPaymentsMethodBreakdown;
 }
 
 export interface IDailyPaymentsTotals extends IDailyPaymentsMetric {
   stall?: IDailyPaymentsMetric;
-  store?: IDailyPaymentsMetric;
+  store?: IDailyPaymentsStoreMetric;
+  methods?: IDailyPaymentsMethodBreakdown;
 }
 
 export interface IDailyPaymentsSummary {

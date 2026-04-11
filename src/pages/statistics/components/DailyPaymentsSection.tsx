@@ -24,7 +24,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { IDailyPaymentsDay, IDailyPaymentsMetric, IDailyPaymentsSummary } from "../hooks/useStatistics";
+import type {
+  IDailyPaymentsDay,
+  IDailyPaymentsMetric,
+  IDailyPaymentsStoreMetric,
+  IDailyPaymentsSummary,
+} from "../hooks/useStatistics";
+
+type NormalizedMetric = {
+  count: number;
+  revenue: number;
+};
+
+type NormalizedStoreMetric = NormalizedMetric & {
+  paymentTypes: {
+    BANK: NormalizedMetric;
+    ONLINE: NormalizedMetric;
+  };
+};
 
 interface DailyPaymentsSectionProps {
   dailyPayments?: IDailyPaymentsSummary;
@@ -39,14 +56,8 @@ type NormalizedDay = {
   day: number;
   count: number;
   revenue: number;
-  stall: {
-    count: number;
-    revenue: number;
-  };
-  store: {
-    count: number;
-    revenue: number;
-  };
+  stall: NormalizedMetric;
+  store: NormalizedStoreMetric;
 };
 
 const padNumber = (value: number) => String(value).padStart(2, "0");
@@ -116,13 +127,21 @@ const normalizeMetric = (metric?: IDailyPaymentsMetric) => ({
   revenue: toNumber(metric?.revenue),
 });
 
+const normalizeStoreMetric = (metric?: IDailyPaymentsStoreMetric): NormalizedStoreMetric => ({
+  ...normalizeMetric(metric),
+  paymentTypes: {
+    BANK: normalizeMetric(metric?.paymentTypes?.BANK),
+    ONLINE: normalizeMetric(metric?.paymentTypes?.ONLINE),
+  },
+});
+
 const normalizeDay = (day?: IDailyPaymentsDay, fallbackDate?: string, fallbackDay?: number): NormalizedDay => ({
   date: day?.date || fallbackDate || "",
   day: toNumber(day?.day, fallbackDay || 0),
   count: toNumber(day?.count),
   revenue: toNumber(day?.revenue),
   stall: normalizeMetric(day?.stall),
-  store: normalizeMetric(day?.store),
+  store: normalizeStoreMetric(day?.store),
 });
 
 const normalizeDailyPayments = (
@@ -142,7 +161,7 @@ const normalizeDailyPayments = (
       count: toNumber(summary?.totals?.count),
       revenue: toNumber(summary?.totals?.revenue),
       stall: normalizeMetric(summary?.totals?.stall),
-      store: normalizeMetric(summary?.totals?.store),
+      store: normalizeStoreMetric(summary?.totals?.store),
     },
     days: enumerateIsoDates(from, to).map(({ date, day }) => normalizeDay(dayMap.get(date), date, day)),
   };
@@ -247,6 +266,8 @@ export function DailyPaymentsSection({
         ...day,
         label: String(day.day),
         fullDateLabel: parseIsoDate(day.date) ? shortDateFormatter.format(parseIsoDate(day.date) as Date) : day.date,
+        storeBankRevenue: day.store.paymentTypes.BANK.revenue,
+        storeOnlineRevenue: day.store.paymentTypes.ONLINE.revenue,
         storeRevenue: day.store.revenue,
         stallRevenue: day.stall.revenue,
       })),
@@ -327,6 +348,43 @@ export function DailyPaymentsSection({
             </div>
           </div>
 
+          <div className="rounded-lg border border-border/60 bg-slate-50/40 p-4">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                {t("statistics.contract_payment_types")}
+              </div>
+              <div className="text-xs font-medium text-muted-foreground">
+                {t("statistics.store_revenue")}
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-md border border-emerald-100 bg-emerald-50 p-4">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">
+                  {t("contracts.bank_only")}
+                </div>
+                <div className="mt-2 text-lg font-semibold text-emerald-950">
+                  {formatCurrency(normalizedDailyPayments.totals.store.paymentTypes.BANK.revenue)}
+                </div>
+                <div className="mt-1 text-sm text-emerald-800">
+                  {numberFormatter.format(normalizedDailyPayments.totals.store.paymentTypes.BANK.count)} {t("statistics.count")}
+                </div>
+              </div>
+
+              <div className="rounded-md border border-sky-100 bg-sky-50 p-4">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-sky-700">
+                  {t("contracts.online")}
+                </div>
+                <div className="mt-2 text-lg font-semibold text-sky-950">
+                  {formatCurrency(normalizedDailyPayments.totals.store.paymentTypes.ONLINE.revenue)}
+                </div>
+                <div className="mt-1 text-sm text-sky-800">
+                  {numberFormatter.format(normalizedDailyPayments.totals.store.paymentTypes.ONLINE.count)} {t("statistics.count")}
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="h-[360px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
@@ -368,7 +426,20 @@ export function DailyPaymentsSection({
                     color: "#94a3b8",
                   }}
                 />
-                <Bar dataKey="storeRevenue" stackId="revenue" name={t("nav.stores")} fill="#10b981" radius={[2, 2, 0, 0]} />
+                <Bar
+                  dataKey="storeBankRevenue"
+                  stackId="revenue"
+                  name={`${t("nav.stores")} - ${t("contracts.bank_only")}`}
+                  fill="#0f766e"
+                  radius={[0, 0, 0, 0]}
+                />
+                <Bar
+                  dataKey="storeOnlineRevenue"
+                  stackId="revenue"
+                  name={`${t("nav.stores")} - ${t("contracts.online")}`}
+                  fill="#10b981"
+                  radius={[0, 0, 0, 0]}
+                />
                 <Bar dataKey="stallRevenue" stackId="revenue" name={t("nav.stalls")} fill="#f97316" radius={[2, 2, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -485,6 +556,38 @@ export function DailyPaymentsSection({
                   </div>
                   <div className="mt-1 text-sm text-orange-800">
                     {numberFormatter.format(selectedDay.stall.count)} {t("statistics.count")}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-md border border-border/60 bg-slate-50 p-4">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  {t("statistics.contract_payment_types")}
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="rounded-md border border-emerald-100 bg-white p-4">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">
+                      {t("contracts.bank_only")}
+                    </div>
+                    <div className="mt-2 text-lg font-semibold text-foreground">
+                      {formatCurrency(selectedDay.store.paymentTypes.BANK.revenue)}
+                    </div>
+                    <div className="mt-1 text-sm text-muted-foreground">
+                      {numberFormatter.format(selectedDay.store.paymentTypes.BANK.count)} {t("statistics.count")}
+                    </div>
+                  </div>
+
+                  <div className="rounded-md border border-sky-100 bg-white p-4">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-sky-700">
+                      {t("contracts.online")}
+                    </div>
+                    <div className="mt-2 text-lg font-semibold text-foreground">
+                      {formatCurrency(selectedDay.store.paymentTypes.ONLINE.revenue)}
+                    </div>
+                    <div className="mt-1 text-sm text-muted-foreground">
+                      {numberFormatter.format(selectedDay.store.paymentTypes.ONLINE.count)} {t("statistics.count")}
+                    </div>
                   </div>
                 </div>
               </div>
