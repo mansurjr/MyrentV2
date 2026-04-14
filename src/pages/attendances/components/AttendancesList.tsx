@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAttendances } from "../hooks/useAttendances";
 import { useStalls } from "../../stalls/hooks/useStalls";
@@ -21,6 +21,15 @@ import { columns } from "./columns";
 import { useToast } from "@/hooks/use-toast";
 import { getAdminAttendancePaymentUrl } from "@/api/payments";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/api-error";
+import { sortByStallNumberAsc } from "@/lib/sort";
+import type { Attendance } from "@/types/api-responses";
+
+const getAttendanceStallNumber = (attendance: Attendance) =>
+  (
+    attendance as Attendance & {
+      stall?: { stallNumber?: string | null } | null;
+    }
+  ).stall?.stallNumber ?? attendance.Stall?.stallNumber;
 
 export function AttendancesList() {
   const { t } = useTranslation();
@@ -50,8 +59,28 @@ export function AttendancesList() {
     limit: 1000,
   });
 
-  const stalls = stallsQuery.data?.data || [];
-  const attendances = attendancesQuery.data?.data || [];
+  const stalls = useMemo(
+    () =>
+      (stallsQuery.data?.data || [])
+        .slice()
+        .sort((left, right) =>
+          sortByStallNumberAsc(left.stallNumber, right.stallNumber),
+        ),
+    [stallsQuery.data?.data],
+  );
+
+  const attendances = useMemo(
+    () =>
+      (attendancesQuery.data?.data || [])
+        .slice()
+        .sort((left, right) =>
+          sortByStallNumberAsc(
+            getAttendanceStallNumber(left),
+            getAttendanceStallNumber(right),
+          ),
+        ),
+    [attendancesQuery.data?.data],
+  );
 
   const handleCreateAttendance = async (stallId: string | number, amount: number) => {
     try {

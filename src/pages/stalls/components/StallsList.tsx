@@ -12,6 +12,7 @@ import type { Stall } from "../../../types/api-responses";
 import { useTranslation } from "react-i18next";
 import { downloadExcelWithAuth } from "@/lib/excel-export";
 import { format } from "date-fns";
+import { sortByStallNumberAsc } from "@/lib/sort";
 
 export function StallsList() {
   const { t } = useTranslation();
@@ -52,10 +53,18 @@ export function StallsList() {
   const { openSidebar, closeSidebar } = useSidebarStore();
   
   const stallsData = useMemo(() => {
-    if (!data) return [];
-    if (Array.isArray(data)) return data;
-    if (Array.isArray((data as any).data)) return (data as any).data;
-    return [];
+    const rawData: Stall[] = (() => {
+      if (!data) return [];
+      if (Array.isArray(data)) return data;
+      if (Array.isArray((data as any).data)) return (data as any).data;
+      return [];
+    })();
+
+    return rawData
+      .slice()
+      .sort((left, right) =>
+        sortByStallNumberAsc(left.stallNumber, right.stallNumber),
+      );
   }, [data]);
 
   const handleEdit = (stall: Stall) => {
