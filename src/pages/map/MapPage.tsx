@@ -373,9 +373,10 @@ export default function MapPage() {
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
               ) : (
-                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-16 gap-2">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(4.5rem,1fr))] gap-1.5">
                   {stalls.map((stall: any) => {
                     const isTaken = stall.isOccupied || stall.reserved;
+                    const sectionName = stall.section?.name || t("common.unknown");
                     const todayStr = format(new Date(), "yyyy-MM-dd");
                     const isPaid = stall.attendances?.some((a: any) => 
                       format(new Date(a.date), "yyyy-MM-dd") === todayStr && a.status === 'PAID'
@@ -394,13 +395,16 @@ export default function MapPage() {
                       <button
                         key={stall.id}
                         onClick={() => setSelectedItem({ type: 'stall', data: stall })}
+                        title={`${stall.stallNumber} • ${sectionName}`}
                         className={cn(
-                          "aspect-square rounded-md border flex flex-col items-center justify-center p-1 transition-all hover:scale-110 hover:shadow-md active:scale-90",
+                          "h-14 rounded-md border flex flex-col items-center justify-center px-1 py-1 transition-all hover:scale-105 hover:shadow-md active:scale-95",
                           statusClasses
                         )}
                       >
-                        <span className="text-xs font-bold leading-none">{stall.stallNumber}</span>
-                        <span className="text-[9px] opacity-60 mt-0.5">{stall.area}{t("common.area_unit")}</span>
+                        <span className="text-[11px] font-bold leading-none">{stall.stallNumber}</span>
+                        <span className="mt-1 max-w-full truncate text-[9px] leading-none opacity-70">
+                          {sectionName}
+                        </span>
                       </button>
                     );
                   })}
@@ -429,10 +433,16 @@ export default function MapPage() {
           </DialogHeader>
 
           <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="p-3 bg-muted/40 rounded-lg border border-border/50">
                 <p className="text-xs text-muted-foreground mb-1">{t("map.area")}</p>
                 <p className="text-lg font-bold">{selectedItem?.data.area} {t("common.area_unit")}</p>
+              </div>
+              <div className="p-3 bg-muted/40 rounded-lg border border-border/50">
+                <p className="text-xs text-muted-foreground mb-1">{t("nav.sections")}</p>
+                <p className="text-lg font-bold">
+                  {selectedItem?.data.section?.name || t("common.unknown")}
+                </p>
               </div>
               <div className="p-3 bg-muted/40 rounded-lg border border-border/50">
                 <p className="text-xs text-muted-foreground mb-1">{t("map.status")}</p>
