@@ -7,6 +7,43 @@ export interface PaymentUrlResponse {
   url: string;
 }
 
+export interface AdminAttendancePaymentItem {
+  attendanceId: string | number;
+  stallId: string;
+  stallNumber: string;
+  amount: number;
+  date: string;
+}
+
+export interface AdminAttendancePaymentResponse extends PaymentUrlResponse {
+  provider: string;
+  totalAmount: number;
+  count: number;
+  attendanceIds: Array<string | number>;
+  items: AdminAttendancePaymentItem[];
+}
+
+export interface AdminAttendanceSinglePaymentResponse extends PaymentUrlResponse {
+  provider?: string;
+  totalAmount?: number;
+  count?: number;
+  attendanceIds?: Array<string | number>;
+  items?: AdminAttendancePaymentItem[];
+}
+
+export interface AdminAttendanceBulkPaymentByAttendanceIdsRequest {
+  attendanceIds: Array<string | number>;
+}
+
+export interface AdminAttendanceBulkPaymentByStallIdsRequest {
+  stallIds: string[];
+  date: string;
+}
+
+export type AdminAttendanceBulkPaymentRequest =
+  | AdminAttendanceBulkPaymentByAttendanceIdsRequest
+  | AdminAttendanceBulkPaymentByStallIdsRequest;
+
 export interface PublicContractSearchResult {
   id: number;
   paymentType: ContractPaymentType;
