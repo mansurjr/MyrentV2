@@ -33,13 +33,14 @@ import { cn } from "@/lib/utils";
 import { downloadExcelWithAuth } from "@/lib/excel-export";
 import { columns } from "./columns";
 import { useToast } from "@/hooks/use-toast";
+import { createAdminAttendance } from "@/api/attendances";
 import {
   createAdminAttendanceBulkPaymentUrl,
   getAdminAttendancePaymentUrl,
 } from "@/api/payments";
 import { getApiErrorMessage, getApiErrorStatus } from "@/lib/api-error";
 import { sortByStallNumberAsc } from "@/lib/sort";
-import type { Attendance } from "@/types/api-responses";
+import type { Attendance, Stall } from "@/types/api-responses";
 import type { AdminAttendancePaymentResponse } from "@/types/payment";
 
 const getAttendanceStallNumber = (attendance: Attendance) =>
@@ -70,6 +71,7 @@ export function AttendancesList() {
   const [bulkPaymentPreview, setBulkPaymentPreview] =
     useState<AdminAttendancePaymentResponse | null>(null);
   const [isBulkPaymentLoading, setIsBulkPaymentLoading] = useState(false);
+  const [isBulkRecordLoading, setIsBulkRecordLoading] = useState(false);
 
   const { useGetStalls } = useStalls();
   const {
@@ -300,6 +302,99 @@ export function AttendancesList() {
     }
   };
 
+  const refetchAttendanceState = async () => {
+    const [nextAttendances] = await Promise.all([
+      attendancesQuery.refetch(),
+      stallsQuery.refetch(),
+    ]);
+
+    return {
+      attendances: nextAttendances.data?.data ?? [],
+    };
+  };
+
+  const getAttendanceIdsForStallIds = (
+    stallIds: readonly string[],
+    attendanceRows: readonly Attendance[],
+  ) => {
+    const nextAttendanceByStallId = new Map(
+      attendanceRows.map((attendance) => [String(attendance.stallId), attendance]),
+    );
+
+    return stallIds.flatMap((stallId) => {
+      const attendance = nextAttendanceByStallId.get(stallId);
+      return attendance ? [attendance.id] : [];
+    });
+  };
+
+  const resolveSelectedAttendances = async () => {
+    const missingStalls = selectedStalls.filter(
+      (stall) => !attendanceByStallId.has(String(stall.id)),
+    );
+
+    if (missingStalls.length === 0) {
+      return attendances;
+    }
+
+    const createResults = await Promise.allSettled(
+      missingStalls.map((stall: Stall) =>
+        createAdminAttendance({
+          stallId: String(stall.id),
+          date: dateStr,
+          status: "UNPAID",
+          amount: stallAmountById.get(String(stall.id)) ?? 0,
+        }),
+      ),
+    );
+
+    const refreshedState = await refetchAttendanceState();
+    const resolvedAttendanceIds = getAttendanceIdsForStallIds(
+      selectedStallIds,
+      refreshedState.attendances,
+    );
+
+    if (resolvedAttendanceIds.length === selectedStallIds.length) {
+      return refreshedState.attendances;
+    }
+
+    const rejectedResult = createResults.find(
+      (result): result is PromiseRejectedResult => result.status === "rejected",
+    );
+
+    throw rejectedResult?.reason ?? new Error("Bulk attendance creation failed");
+  };
+
+  const handleBulkRecord = async () => {
+    if (selectedStallIds.length === 0 || isBulkRecordLoading) {
+      return;
+    }
+
+    setIsBulkRecordLoading(true);
+    try {
+      await resolveSelectedAttendances();
+      toast({
+        title: t("common.success"),
+        description: `${selectedStallIds.length} ta rasta uchun attendance qayd etildi.`,
+      });
+    } catch (error) {
+      const status = getApiErrorStatus(error);
+      if (status === 400 || status === 409) {
+        await Promise.all([attendancesQuery.refetch(), stallsQuery.refetch()]);
+      }
+
+      toast({
+        title: t("common.error"),
+        description: getApiErrorMessage(
+          error,
+          "Tanlangan rastalar uchun attendance yaratib bo'lmadi.",
+        ),
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkRecordLoading(false);
+    }
+  };
+
   const handleBulkPayment = async () => {
     if (selectedStallIds.length === 0 || isBulkPaymentLoading) {
       return;
@@ -307,9 +402,18 @@ export function AttendancesList() {
 
     setIsBulkPaymentLoading(true);
     try {
+      const resolvedAttendances = await resolveSelectedAttendances();
+      const attendanceIds = getAttendanceIdsForStallIds(
+        selectedStallIds,
+        resolvedAttendances,
+      );
+
+      if (attendanceIds.length === 0) {
+        throw new Error("No attendances selected for payment");
+      }
+
       const response = await createAdminAttendanceBulkPaymentUrl({
-        stallIds: selectedStallIds,
-        date: dateStr,
+        attendanceIds,
       });
 
       setBulkPaymentPreview(response);
@@ -439,8 +543,8 @@ export function AttendancesList() {
                 {new Intl.NumberFormat("uz-UZ").format(selectedTotalAmount)} UZS
               </p>
               <p className="text-xs text-muted-foreground">
-                To'langan rastalar tanlanmaydi. Qayd etilmagan rastalar to'lovda
-                avtomatik attendance yaratadi.
+                To'langan rastalar tanlanmaydi. Bulk to'lov oldidan frontend
+                tanlangan rastalar uchun attendance yozuvlarini yaratadi.
               </p>
             </div>
 
@@ -460,10 +564,26 @@ export function AttendancesList() {
                 Tozalash
               </Button>
               <Button
+                variant="outline"
+                onClick={() => {
+                  void handleBulkRecord();
+                }}
+                disabled={selectedStalls.length === 0 || isBulkRecordLoading}
+              >
+                {isBulkRecordLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Tanlanganlarni qayd etish
+              </Button>
+              <Button
                 onClick={() => {
                   void handleBulkPayment();
                 }}
-                disabled={selectedStalls.length === 0 || isBulkPaymentLoading}
+                disabled={
+                  selectedStalls.length === 0 ||
+                  isBulkPaymentLoading ||
+                  isBulkRecordLoading
+                }
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 {isBulkPaymentLoading ? (
