@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, Trash2, Loader2, QrCode } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Stall, Attendance } from "@/types/api-responses";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const PaymentButton = ({
   attendanceId,
@@ -45,14 +45,102 @@ const PaymentButton = ({
   );
 };
 
-export const columns = (
-  attendances: Attendance[],
-  onCreate: (stallId: string | number, amount: number) => void,
-  onDelete: (id: number) => void,
-  onGetPaymentUrl: (attendanceId: number) => Promise<string | null>,
-  isLoading: boolean,
-  t: any,
-): ColumnDef<Stall>[] => [
+const SelectionCheckbox = ({
+  checked,
+  indeterminate = false,
+  disabled = false,
+  onCheckedChange,
+  ariaLabel,
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  disabled?: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  ariaLabel: string;
+}) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!inputRef.current) {
+      return;
+    }
+
+    inputRef.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+
+  return (
+    <input
+      ref={inputRef}
+      type="checkbox"
+      checked={checked}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      className="h-4 w-4 cursor-pointer rounded border border-border/70 accent-primary disabled:cursor-not-allowed disabled:opacity-40"
+      onChange={(event) => onCheckedChange(event.target.checked)}
+    />
+  );
+};
+
+interface AttendanceColumnsOptions {
+  attendanceByStallId: Map<string, Attendance>;
+  selectedStallIds: Set<string>;
+  allVisiblePayableSelected: boolean;
+  someVisiblePayableSelected: boolean;
+  hasVisiblePayableRows: boolean;
+  onToggleVisibleSelection: (checked: boolean) => void;
+  onToggleSelection: (stallId: string, checked: boolean) => void;
+  onCreate: (stallId: string | number, amount: number) => void;
+  onDelete: (id: number) => void;
+  onGetPaymentUrl: (attendanceId: number) => Promise<string | null>;
+  isLoading: boolean;
+  t: any;
+}
+
+export const columns = ({
+  attendanceByStallId,
+  selectedStallIds,
+  allVisiblePayableSelected,
+  someVisiblePayableSelected,
+  hasVisiblePayableRows,
+  onToggleVisibleSelection,
+  onToggleSelection,
+  onCreate,
+  onDelete,
+  onGetPaymentUrl,
+  isLoading,
+  t,
+}: AttendanceColumnsOptions): ColumnDef<Stall>[] => [
+  {
+    id: "select",
+    header: () => (
+      <div className="flex items-center justify-center">
+        <SelectionCheckbox
+          checked={allVisiblePayableSelected}
+          indeterminate={someVisiblePayableSelected}
+          disabled={!hasVisiblePayableRows}
+          ariaLabel="Select visible unpaid stalls"
+          onCheckedChange={onToggleVisibleSelection}
+        />
+      </div>
+    ),
+    cell: ({ row }) => {
+      const stall = row.original;
+      const stallId = String(stall.id);
+      const attendance = attendanceByStallId.get(stallId);
+      const isPaid = attendance?.status === "PAID";
+
+      return (
+        <div className="flex items-center justify-center">
+          <SelectionCheckbox
+            checked={selectedStallIds.has(stallId)}
+            disabled={isPaid}
+            ariaLabel={`Select stall ${stall.stallNumber ?? stallId}`}
+            onCheckedChange={(checked) => onToggleSelection(stallId, checked)}
+          />
+        </div>
+      );
+    },
+  },
   {
     accessorKey: "stallNumber",
     header: t("nav.stalls"),
@@ -81,7 +169,7 @@ export const columns = (
     header: "Holat",
     cell: ({ row }) => {
       const stall = row.original;
-      const attendance = attendances.find((item) => item.stallId === stall.id);
+      const attendance = attendanceByStallId.get(String(stall.id));
 
       if (!attendance) {
         return (
@@ -111,7 +199,7 @@ export const columns = (
     header: "Tezkor amal",
     cell: ({ row }) => {
       const stall = row.original;
-      const attendance = attendances.find((item) => item.stallId === stall.id);
+      const attendance = attendanceByStallId.get(String(stall.id));
 
       if (!attendance) {
         return (
