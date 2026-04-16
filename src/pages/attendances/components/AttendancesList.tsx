@@ -12,6 +12,7 @@ import {
   Calendar as CalendarIcon,
   FileSpreadsheet,
   CreditCard,
+  X,
 } from "lucide-react";
 import { format } from "date-fns";
 import { uz } from "date-fns/locale";
@@ -195,6 +196,23 @@ export function AttendancesList() {
       ),
     [selectedStalls, stallAmountById],
   );
+
+  const isSelectionReadyForPayment =
+    selectedStallIds.length > 0 &&
+    selectedStallIds.every((stallId) => attendanceByStallId.has(stallId));
+
+  const isBulkActionLoading = isSelectionReadyForPayment
+    ? isBulkPaymentLoading
+    : isBulkRecordLoading;
+
+  const handleBulkAction = () => {
+    if (isSelectionReadyForPayment) {
+      void handleBulkPayment();
+      return;
+    }
+
+    void handleBulkRecord();
+  };
 
   useEffect(() => {
     setPage(1);
@@ -534,65 +552,79 @@ export function AttendancesList() {
           </Button>
         </div>
 
-        <div className="rounded-xl border border-border/50 bg-muted/20 p-4 shadow-sm">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="space-y-1">
-              <p className="text-sm font-semibold">Bulk stall payment</p>
-              <p className="text-sm text-muted-foreground">
-                Tanlangan rasta: {selectedStalls.length} ta. Jami:{" "}
-                {new Intl.NumberFormat("uz-UZ").format(selectedTotalAmount)} UZS
-              </p>
-              <p className="text-xs text-muted-foreground">
-                To'langan rastalar tanlanmaydi. Bulk to'lov oldidan frontend
-                tanlangan rastalar uchun attendance yozuvlarini yaratadi.
-              </p>
+        <div className="rounded-2xl border border-border/50 bg-gradient-to-b from-background to-muted/30 p-4 shadow-sm sm:p-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <p className="text-base font-semibold">
+                  Rastalar uchun ommaviy to'lov
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  To'langan rastalar bu yerda tanlanmaydi. Tanlangan rastalar
+                  avval qayd etiladi, keyin to'lovga o'tiladi.
+                </p>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="rounded-xl border border-border/50 bg-background/80 px-3 py-2">
+                  <p className="text-xs text-muted-foreground">
+                    Tanlangan rasta
+                  </p>
+                  <p className="text-lg font-semibold">
+                    {selectedStalls.length} ta
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/50 bg-background/80 px-3 py-2">
+                  <p className="text-xs text-muted-foreground">Jami summa</p>
+                  <p className="text-lg font-semibold">
+                    {new Intl.NumberFormat("uz-UZ").format(selectedTotalAmount)}{" "}
+                    UZS
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button
-                variant="outline"
-                onClick={handleSelectAllPayable}
-                disabled={payableStallIds.length === 0}
-              >
-                To'lanmaganlarni tanlash
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleClearSelection}
-                disabled={selectedStalls.length === 0}
-              >
-                Tozalash
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  void handleBulkRecord();
-                }}
-                disabled={selectedStalls.length === 0 || isBulkRecordLoading}
-              >
-                {isBulkRecordLoading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
-                Tanlanganlarni qayd etish
-              </Button>
-              <Button
-                onClick={() => {
-                  void handleBulkPayment();
-                }}
-                disabled={
-                  selectedStalls.length === 0 ||
-                  isBulkPaymentLoading ||
-                  isBulkRecordLoading
-                }
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {isBulkPaymentLoading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <CreditCard className="mr-2 h-4 w-4" />
-                )}
-                Tanlanganlarni to'lash
-              </Button>
+            <div className="w-full max-w-2xl">
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                <Button
+                  variant="outline"
+                  onClick={handleSelectAllPayable}
+                  disabled={payableStallIds.length === 0}
+                  className="col-span-2 h-12 rounded-xl px-4 text-sm font-semibold sm:col-span-1"
+                >
+                  To'lanmaganlarni tanlash
+                </Button>
+                <Button
+                  onClick={handleBulkAction}
+                  disabled={
+                    selectedStalls.length === 0 ||
+                    isBulkPaymentLoading ||
+                    isBulkRecordLoading
+                  }
+                  className="h-12 rounded-xl bg-blue-600 px-4 text-sm font-semibold hover:bg-blue-700"
+                >
+                  {isBulkActionLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : isSelectionReadyForPayment ? (
+                    <CreditCard className="mr-2 h-4 w-4" />
+                  ) : null}
+                  {isSelectionReadyForPayment
+                    ? "To'lash"
+                    : "Tanlanganlarni qayd etish"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleClearSelection}
+                  disabled={selectedStalls.length === 0}
+                  className="h-12 w-12 rounded-xl border border-border/50"
+                  title="Tanlovni bekor qilish"
+                  aria-label="Tanlovni bekor qilish"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
